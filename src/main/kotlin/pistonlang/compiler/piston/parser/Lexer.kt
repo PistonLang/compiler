@@ -1,19 +1,19 @@
-package pistonlang.compiler.palm.parser
+package pistonlang.compiler.piston.parser
 
 import pistonlang.compiler.common.parser.Lexer
 import pistonlang.compiler.common.parser.SyntaxToken
 
 const val eof = '\u0000'
 
-class PalmLexer(private val code: String) : Lexer<PalmType> {
+class PistonLexer(private val code: String) : Lexer<PistonType> {
     private fun getChar(pos: Int): Char = if (pos < code.length) code[pos] else eof
 
     override fun ended(pos: Int) = pos >= code.length
 
-    override fun lexToken(pos: Int): PalmToken = when (val char = getChar(pos)) {
+    override fun lexToken(pos: Int): PistonToken = when (val char = getChar(pos)) {
         eof -> if (ended(pos)) Tokens.eof else Tokens.nullChar
         '+' -> Tokens.plus
-        '-' -> lexMinus(pos + 1)
+        '-' -> Tokens.minus
         '*' -> Tokens.star
         '/' -> lexSlash(pos + 1)
         '<' -> lexLess(pos + 1)
@@ -42,14 +42,13 @@ class PalmLexer(private val code: String) : Lexer<PalmType> {
         '_' -> lexIdentifier(pos, pos + 1)
         else ->
             if (char.isLetter()) lexIdentifier(pos, pos + 1)
-            else SyntaxToken(PalmType.unknown, char.toString())
+            else SyntaxToken(PistonType.unknown, char.toString())
     }
 
     private fun lexZero(pos: Int) = when (getChar(pos)) {
         'b', 'B' -> lexBinary(pos - 1, pos + 1)
         'x', 'X' -> lexHex(pos - 1, pos + 1)
-        '.' -> lexFloating(pos - 1, pos + 1)
-        else -> Tokens.zero
+        else -> lexDecimal(pos - 1, pos)
     }
 
     private fun lexPipe(pos: Int) = when (getChar(pos)) {
@@ -90,25 +89,20 @@ class PalmLexer(private val code: String) : Lexer<PalmType> {
         else -> Tokens.slash
     }
 
-    private fun lexMinus(pos: Int) = when (getChar(pos)) {
-        '>' -> Tokens.arrow
-        else -> Tokens.minus
-    }
-
-    private fun tokenTill(start: Int, end: Int, type: PalmType): PalmToken =
+    private fun tokenTill(start: Int, end: Int, type: PistonType): PistonToken =
         SyntaxToken(type, code.substring(start, end))
 
-    private tailrec fun lexComment(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
-        '\n' -> tokenTill(start, pos, PalmType.comment)
-        eof -> if (ended(pos)) tokenTill(start, pos, PalmType.comment) else lexComment(start, pos + 1)
+    private tailrec fun lexComment(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
+        '\n' -> tokenTill(start, pos, PistonType.comment)
+        eof -> if (ended(pos)) tokenTill(start, pos, PistonType.comment) else lexComment(start, pos + 1)
         else -> lexComment(start, pos + 1)
     }
 
-    private tailrec fun lexMultiComment(start: Int, pos: Int, layer: Int): PalmToken = when {
-        ended(pos) -> tokenTill(start, pos, PalmType.comment)
+    private tailrec fun lexMultiComment(start: Int, pos: Int, layer: Int): PistonToken = when {
+        ended(pos) -> tokenTill(start, pos, PistonType.comment)
 
         getChar(pos) == '*' && getChar(pos + 1) == '/' ->
-            if (layer == 0) tokenTill(start, pos + 1, PalmType.comment)
+            if (layer == 0) tokenTill(start, pos + 1, PistonType.comment)
             else lexMultiComment(start, pos + 1, layer - 1)
 
         getChar(pos) == '/' && getChar(pos + 1) == '*' ->
@@ -117,17 +111,17 @@ class PalmLexer(private val code: String) : Lexer<PalmType> {
         else -> lexMultiComment(start, pos + 1, layer)
     }
 
-    private tailrec fun lexBinary(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexBinary(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         '0', '1' -> lexBinary(start, pos + 1)
-        else -> tokenTill(start, pos, PalmType.intLiteral)
+        else -> tokenTill(start, pos, PistonType.intLiteral)
     }
 
-    private tailrec fun lexHex(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexHex(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         in '0'..'9', in 'A'..'F', in 'a'..'f' -> lexHex(start, pos + 1)
-        else -> tokenTill(start, pos, PalmType.intLiteral)
+        else -> tokenTill(start, pos, PistonType.intLiteral)
     }
 
-    private tailrec fun lexFloating(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexFloating(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         in '0'..'9' -> lexFloating(start, pos + 1)
 
         'e', 'E' -> when (getChar(pos + 1)) {
@@ -135,62 +129,70 @@ class PalmLexer(private val code: String) : Lexer<PalmType> {
             else -> lexExponent(start, pos + 1)
         }
 
-        else -> tokenTill(start, pos, PalmType.floatLiteral)
+        else -> tokenTill(start, pos, PistonType.floatLiteral)
     }
 
-    private tailrec fun lexExponent(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexExponent(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         in '0'..'9' -> lexExponent(start, pos + 1)
-        else -> tokenTill(start, pos, PalmType.floatLiteral)
+        else -> tokenTill(start, pos, PistonType.floatLiteral)
     }
 
-    private tailrec fun lexDecimal(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexDecimal(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         in '0'..'9' -> lexDecimal(start, pos + 1)
-        else -> tokenTill(start, pos, PalmType.intLiteral)
+
+        '.' ->
+            if (getChar(pos + 1) in '0'..'9') lexFloating(start, pos + 1)
+            else tokenTill(start, pos, PistonType.intLiteral)
+
+        else -> tokenTill(start, pos, PistonType.intLiteral)
     }
 
-    private tailrec fun lexWhitespace(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexWhitespace(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         ' ', '\t', '\u000B', '\u000C', '\u000D' -> lexWhitespace(start, pos + 1)
-        else -> tokenTill(start, pos, PalmType.whitespace)
+        else -> tokenTill(start, pos, PistonType.whitespace)
     }
 
-    private tailrec fun lexIdentifier(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
+    private tailrec fun lexIdentifier(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
+        '_' ->
+            if (getChar(pos + 1) == '=') handleIdentifier(code.substring(start, pos + 2))
+            else lexIdentifier(start, pos + 1)
         in AlphaGroup -> lexIdentifier(start, pos + 1)
         else -> handleIdentifier(code.substring(start, pos))
     }
 
     private fun lexChar(pos: Int) = when {
-        getChar(pos + 1) == '\'' -> SyntaxToken(PalmType.charLiteral, code.substring(pos - 1, pos + 2))
+        getChar(pos + 1) == '\'' -> SyntaxToken(PistonType.charLiteral, code.substring(pos - 1, pos + 2))
         else -> when (val curr = getChar(pos)) {
             '\n', eof -> Tokens.singleQuote
             else ->
-                if (curr.isWhitespace()) SyntaxToken(PalmType.charLiteral, code.substring(pos - 1, pos + 1))
+                if (curr.isWhitespace()) SyntaxToken(PistonType.charLiteral, code.substring(pos - 1, pos + 1))
                 else lexLongChar(pos - 1, pos)
         }
     }
 
-    private fun lexLongChar(start: Int, pos: Int): PalmToken = when (val curr = getChar(pos)) {
+    private fun lexLongChar(start: Int, pos: Int): PistonToken = when (val curr = getChar(pos)) {
         '\\' -> lexLongChar(start, pos + if (getChar(pos + 1) == '\'') 2 else 1)
-        '\'' -> SyntaxToken(PalmType.charLiteral, code.substring(start, pos + 1))
+        '\'' -> SyntaxToken(PistonType.charLiteral, code.substring(start, pos + 1))
         else ->
-            if (!curr.isWhitespace()) SyntaxToken(PalmType.charLiteral, code.substring(start, pos))
+            if (!curr.isWhitespace()) SyntaxToken(PistonType.charLiteral, code.substring(start, pos))
             else lexLongChar(start, pos + 1)
     }
 
-    private tailrec fun lexString(start: Int, pos: Int): PalmToken = when (getChar(pos)) {
-        '\"' -> SyntaxToken(PalmType.stringLiteral, code.substring(start, pos + 1))
+    private tailrec fun lexString(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
+        '\"' -> SyntaxToken(PistonType.stringLiteral, code.substring(start, pos + 1))
         '\\' -> when (getChar(pos + 1)) {
             '\\', '\"' -> lexString(start, pos + 2)
             else -> lexString(start, pos + 1)
         }
 
         eof ->
-            if (ended(pos)) SyntaxToken(PalmType.stringLiteral, code.substring(start, pos))
+            if (ended(pos)) SyntaxToken(PistonType.stringLiteral, code.substring(start, pos))
             else lexString(start, pos + 1)
 
         else -> lexString(start, pos + 1)
     }
 
-    private fun handleIdentifier(ident: String): PalmToken = when (ident) {
+    private fun handleIdentifier(ident: String): PistonToken = when (ident) {
         "this" -> Tokens.thisKw
         "val" -> Tokens.valKw
         "var" -> Tokens.varKw
@@ -199,19 +201,17 @@ class PalmLexer(private val code: String) : Lexer<PalmType> {
         "class" -> Tokens.classKw
         "trait" -> Tokens.traitKw
         "def" -> Tokens.defKw
-        "get" -> Tokens.getKw
-        "set" -> Tokens.setKw
         "where" -> Tokens.whereKw
         "null" -> Tokens.nullKw
         "true" -> Tokens.trueKw
         "false" -> Tokens.falseKw
-        else -> SyntaxToken(PalmType.identifier, ident)
+        else -> SyntaxToken(PistonType.identifier, ident)
     }
 }
 
 object AlphaGroup {
     operator fun contains(char: Char) = when (char) {
-        in 'a'..'z', in 'A'..'Z', in '0'..'9', '_', '\'' -> true
+        in 'a'..'z', in 'A'..'Z', in '0'..'9', '\'' -> true
         else -> char.isLetterOrDigit()
     }
 }

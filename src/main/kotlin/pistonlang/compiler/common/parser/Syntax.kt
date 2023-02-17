@@ -17,7 +17,9 @@ data class SyntaxToken<T : SyntaxType>(override val type: T, override val conten
         get() = content.length
 }
 
-data class SyntaxChild<T : SyntaxType>(val offset: Int, val syntax: Syntax<T>)
+typealias SyntaxChild<T> = Offset<Syntax<T>>
+
+data class Offset<T>(val offset: Int, val value: T)
 
 data class SyntaxNode<T : SyntaxType>(
     override val type: T,

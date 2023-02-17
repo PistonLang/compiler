@@ -1,8 +1,8 @@
-package pistonlang.compiler.palm.parser
+package pistonlang.compiler.piston.parser
 
 import pistonlang.compiler.common.parser.SyntaxType
 
-enum class PalmType(
+enum class PistonType(
     override val ignorable: Boolean = false,
     override val trailing: Boolean = true,
     override val isNewline: Boolean = false
@@ -17,8 +17,6 @@ enum class PalmType(
     nullKw,
     whereKw,
     importKw,
-    getKw,
-    setKw,
     valKw,
     varKw,
     defKw,
@@ -61,12 +59,10 @@ enum class PalmType(
     lBrace,
     rBrace,
 
-    arrow,
     and,
     subtype,
     superType,
 
-    ident,
     pathSegment,
 
     nestedExpression,
@@ -98,8 +94,6 @@ enum class PalmType(
     import,
 
     propertyDef,
-    getterDef,
-    setterDef,
     classDef,
     traitDef,
     functionDef,
@@ -120,5 +114,7 @@ enum class PalmType(
     nullableType,
     typeInstance,
     intersectionType,
-    superTypes;
+    superTypes,
+
+    error,
 }

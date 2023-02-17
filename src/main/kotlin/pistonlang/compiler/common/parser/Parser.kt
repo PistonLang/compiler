@@ -5,61 +5,68 @@ import pistonlang.compiler.common.utl.BufferList
 class Parser<T: SyntaxType>(lexer: Lexer<T>) {
     private val stream = TokenStream(lexer)
     private val buffer = BufferList<Syntax<T>>()
-    private var trailingIndex = 0
+    private var currentIndex = -1
+    private var trailingIndex = -1
     var sawNewline = false
         private set
 
-    fun top() = buffer.last()
+    fun top() = buffer[currentIndex]
 
-    private fun readToken(): Syntax<T> {
-        val curr = stream.next()
-        buffer.add(curr)
-        return curr
+    private fun handleForward(trailing: Boolean): Boolean {
+        currentIndex++
+        val top = top().type
+        if (top.isNewline) sawNewline = true
+        if (!trailing && top.trailing) {
+            trailingIndex = currentIndex
+            return true
+        }
+        return trailing
     }
 
-    fun bump(): Syntax<T> {
+    private tailrec fun forwardAdd(trailing: Boolean): Syntax<T> {
+        val newTrailing = handleForward(trailing)
+        val top = top()
+        return if (top.type.ignorable) forwardAdd(newTrailing) else top
+    }
+
+    private tailrec fun forwardMove(trailing: Boolean): Syntax<T> = if (currentIndex == buffer.size) forwardAdd(trailing) else {
+        val newTrailing = handleForward(trailing)
+        val top = top()
+        if (top.type.ignorable) forwardMove(newTrailing) else top
+    }
+
+    fun forward() {
         sawNewline = false
-        return bump(true)
+        forwardMove(false)
     }
 
-    private fun bump(findStart: Boolean): Syntax<T> = when {
-        stream.hasNext() -> top()
-
-        readToken().type.ignorable -> {
-            val trailing = top().type.trailing
-            if (findStart && trailing) trailingIndex = buffer.lastIndex
-            if (top().type.isNewline) sawNewline = true
-            bump(findStart && !trailing)
-        }
-
-        else -> {
-            if (findStart) trailingIndex = buffer.lastIndex
-            top()
-        }
-    }
-
-    fun nest(type: T) {
-        buffer[buffer.lastIndex] = SyntaxNode(type, listOf(SyntaxChild(0, buffer.last())), buffer.last().length)
+    fun next(): Syntax<T> = if (currentIndex < buffer.lastIndex) {
+        buffer[currentIndex + 1]
+    } else {
+        stream.next().also { buffer.add(it) }
     }
 
     fun mark() = ParseMarker(trailingIndex)
 
-    fun end(type: T, data: ParseMarker) {
+    private fun finishNode(type: T, start: Int, end: Int) {
         val list = mutableListOf<SyntaxChild<T>>()
         var len = 0
 
-        for (index in data.startIndex..buffer.lastIndex) {
+        for (index in start until end) {
             val curr = buffer[index]
             list += SyntaxChild(len, curr)
             len += curr.length
         }
 
-        buffer.removeRange(data.startIndex + 1, trailingIndex)
-
         val res = SyntaxNode(type, list, len)
-        buffer.add(res)
+        buffer[start] = res
+        currentIndex -= trailingIndex - start + 1
+        buffer.removeRange(start + 1, trailingIndex)
     }
+
+    fun between(type: T, start: ParseMarker, end: ParseMarker) = finishNode(type, start.index, end.index)
+
+    fun end(type: T, start: ParseMarker) = finishNode(type, start.index, trailingIndex)
 }
 
-@JvmInline
-value class ParseMarker(val startIndex: Int)
+data class ParseMarker(internal val index: Int)
