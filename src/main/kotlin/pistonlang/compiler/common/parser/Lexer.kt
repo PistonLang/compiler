@@ -6,10 +6,19 @@ interface Lexer<T: SyntaxType> {
     fun ended(pos: Int): Boolean
 }
 
-class TokenStream<T: SyntaxType>(private val lexer: Lexer<T>): Iterator<SyntaxToken<T>> {
-    private var pos = 0
+class TokenStream<T: SyntaxType>(startPos: Int, private val lexer: Lexer<T>): Iterable<Syntax<T>> {
+    var current = lexer.lexToken(startPos)
+        private set
 
-    override fun hasNext(): Boolean = !lexer.ended(pos)
+    private var pos = current.length
 
-    override fun next(): SyntaxToken<T> = lexer.lexToken(pos).also { pos += it.length }
+    fun move() {
+        current = lexer.lexToken(0)
+        pos += current.length
+    }
+
+    override fun iterator() = object : Iterator<Syntax<T>> {
+        override fun hasNext() = lexer.ended(pos)
+        override fun next(): Syntax<T> = current.also { move() }
+    }
 }

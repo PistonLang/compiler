@@ -4,7 +4,6 @@ import pistonlang.compiler.common.parser.SyntaxType
 
 enum class PistonType(
     override val ignorable: Boolean = false,
-    override val trailing: Boolean = true,
     override val isNewline: Boolean = false
 ) : SyntaxType {
     intLiteral,
@@ -27,9 +26,9 @@ enum class PistonType(
 
     identifier,
 
-    comment(ignorable = true, trailing = true),
-    whitespace(ignorable = true, trailing = false),
-    newline(ignorable = true, trailing = false, isNewline = true),
+    comment(ignorable = true),
+    whitespace(ignorable = true),
+    newline(ignorable = true, isNewline = true),
 
     eof,
     unknown,

@@ -1,72 +1,93 @@
 package pistonlang.compiler.common.parser
 
-import pistonlang.compiler.common.utl.BufferList
+class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
+    private val stream = TokenStream(0, lexer)
+    @PublishedApi
+    internal val nodeStack = mutableListOf(MutableSyntaxNode(resultType))
+    private var buffer = buildSegment()
 
-class Parser<T: SyntaxType>(lexer: Lexer<T>) {
-    private val stream = TokenStream(lexer)
-    private val buffer = BufferList<Syntax<T>>()
-    private var currentIndex = -1
-    private var trailingIndex = -1
-    var sawNewline = false
-        private set
+    fun nextToken() = stream.current
 
-    fun top() = buffer[currentIndex]
+    fun at(type: T): Boolean = currType == type
 
-    private fun handleForward(trailing: Boolean): Boolean {
-        currentIndex++
-        val top = top().type
-        if (top.isNewline) sawNewline = true
-        if (!trailing && top.trailing) {
-            trailingIndex = currentIndex
-            return true
+    val currType get() = buffer.last().type
+
+    private inline fun useBuffer(crossinline fn: (buf: MutableList<SyntaxChild<T>>) -> Unit) {
+        addTrailing(buffer.textLength)
+        fn(buffer)
+        buffer = buildSegment()
+    }
+
+    private tailrec fun buildSegment(buf: MutableList<SyntaxChild<T>>, offset: Int) {
+        val curr = stream.current
+        buf.add(SyntaxChild(offset, curr))
+        stream.move()
+        if (curr.type.ignorable) buildSegment(buf, offset + curr.length)
+    }
+
+    private fun buildSegment(): MutableList<SyntaxChild<T>> {
+        val res = mutableListOf<SyntaxChild<T>>()
+        buildSegment(res, 0)
+        return res
+    }
+
+    private tailrec fun addTrailing(offset: Int) {
+        val curr = stream.current
+        if (curr.type.run { ignorable && !isNewline }) {
+            buffer.add(SyntaxChild(offset, curr))
+            stream.move()
+            addTrailing(offset + curr.length)
         }
-        return trailing
     }
 
-    private tailrec fun forwardAdd(trailing: Boolean): Syntax<T> {
-        val newTrailing = handleForward(trailing)
-        val top = top()
-        return if (top.type.ignorable) forwardAdd(newTrailing) else top
+    fun nest(type: T) {
+        val top = nodeStack.last()
+        val newNode = MutableSyntaxNode(type)
+        newNode.add(top.toImmutable())
+        nodeStack[nodeStack.size] = newNode
     }
 
-    private tailrec fun forwardMove(trailing: Boolean): Syntax<T> = if (currentIndex == buffer.size) forwardAdd(trailing) else {
-        val newTrailing = handleForward(trailing)
-        val top = top()
-        if (top.type.ignorable) forwardMove(newTrailing) else top
+    fun pushToNode(type: T) = useBuffer { buf ->
+        nodeStack.last().add(SyntaxNode(type, buf, buf.textLength))
     }
 
-    fun forward() {
-        sawNewline = false
-        forwardMove(false)
+    inline fun createNode(type: T, crossinline fn: () -> Unit) {
+        val node = MutableSyntaxNode(type)
+        nodeStack.add(node)
+        fn()
+        nodeStack.removeLast()
+        nodeStack.last().add(node.toImmutable())
     }
 
-    fun next(): Syntax<T> = if (currentIndex < buffer.lastIndex) {
-        buffer[currentIndex + 1]
-    } else {
-        stream.next().also { buffer.add(it) }
+    inline fun tryCreateNode(type: T, crossinline succeeded: () -> Boolean): Boolean {
+        val node = MutableSyntaxNode(type)
+        nodeStack.add(node)
+        val success = succeeded()
+        nodeStack.removeLast()
+        if (success) nodeStack.last().add(node.toImmutable())
+        return success
     }
 
-    fun mark() = ParseMarker(trailingIndex)
-
-    private fun finishNode(type: T, start: Int, end: Int) {
-        val list = mutableListOf<SyntaxChild<T>>()
-        var len = 0
-
-        for (index in start until end) {
-            val curr = buffer[index]
-            list += SyntaxChild(len, curr)
-            len += curr.length
-        }
-
-        val res = SyntaxNode(type, list, len)
-        buffer[start] = res
-        currentIndex -= trailingIndex - start + 1
-        buffer.removeRange(start + 1, trailingIndex)
+    fun push() = useBuffer { buf ->
+        val node = nodeStack.last()
+        buf.forEach { node.add(it.value) }
     }
 
-    fun between(type: T, start: ParseMarker, end: ParseMarker) = finishNode(type, start.index, end.index)
+    fun finish(): Syntax<T> = when (nodeStack.size) {
+        1 -> nodeStack.first().toImmutable()
+        0 -> error("Node stack is empty")
+        else -> error("Node stack has more than 1 element")
+    }
 
-    fun end(type: T, start: ParseMarker) = finishNode(type, start.index, trailingIndex)
+    val startWithNewline get(): Boolean = buffer.isNotEmpty() && buffer.first().value.type.isNewline
 }
 
-data class ParseMarker(internal val index: Int)
+@PublishedApi
+internal class MutableSyntaxNode<T : SyntaxType>(private val type: T) {
+    private val children = mutableListOf<SyntaxChild<T>>()
+
+    fun add(node: Syntax<T>) {
+        children.add(SyntaxChild(children.textLength, node))
+    }
+    fun toImmutable() = SyntaxNode(type, children, children.textLength)
+}

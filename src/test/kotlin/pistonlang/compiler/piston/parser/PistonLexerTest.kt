@@ -13,7 +13,7 @@ class PistonLexerTest {
 
         val expected = "[defKw, whitespace, identifier, lBracket, identifier, rBracket, lParen, identifier, colon, whitespace, identifier, comma, whitespace, identifier, colon, whitespace, identifier, comma, whitespace, identifier, colon, whitespace, identifier, rParen, whitespace, eq, whitespace, identifier, lParen, lParen, identifier, whitespace, plus, whitespace, identifier, rParen, dot, identifier, lParen, rParen, whitespace, plus, whitespace, identifier, rParen]"
 
-        val lexer = TokenStream(PistonLexer(code))
+        val lexer = TokenStream(0, PistonLexer(code))
 
         val list = lexer.asSequence().map { it.type }.toList()
 
