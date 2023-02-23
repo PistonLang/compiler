@@ -12,21 +12,21 @@ class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
 
     val currType get() = buffer.last().type
 
-    private inline fun useBuffer(crossinline fn: (buf: MutableList<SyntaxChild<T>>) -> Unit) {
+    private inline fun useBuffer(crossinline fn: (buf: MutableList<GreenChild<T>>) -> Unit) {
         addTrailing(buffer.textLength)
         fn(buffer)
         buffer = buildSegment()
     }
 
-    private tailrec fun buildSegment(buf: MutableList<SyntaxChild<T>>, offset: Int) {
+    private tailrec fun buildSegment(buf: MutableList<GreenChild<T>>, offset: Int) {
         val curr = stream.current
-        buf.add(SyntaxChild(offset, curr))
+        buf.add(GreenChild(offset, curr))
         stream.move()
         if (curr.type.ignorable) buildSegment(buf, offset + curr.length)
     }
 
-    private fun buildSegment(): MutableList<SyntaxChild<T>> {
-        val res = mutableListOf<SyntaxChild<T>>()
+    private fun buildSegment(): MutableList<GreenChild<T>> {
+        val res = mutableListOf<GreenChild<T>>()
         buildSegment(res, 0)
         return res
     }
@@ -34,46 +34,40 @@ class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
     private tailrec fun addTrailing(offset: Int) {
         val curr = stream.current
         if (curr.type.run { ignorable && !isNewline }) {
-            buffer.add(SyntaxChild(offset, curr))
+            buffer.add(GreenChild(offset, curr))
             stream.move()
             addTrailing(offset + curr.length)
         }
     }
 
-    fun nest(type: T) {
-        val top = nodeStack.last()
-        val newNode = MutableSyntaxNode(type)
-        newNode.add(top.toImmutable())
-        nodeStack[nodeStack.size] = newNode
-    }
-
     fun pushToNode(type: T) = useBuffer { buf ->
-        nodeStack.last().add(SyntaxNode(type, buf, buf.textLength))
+        nodeStack.last().push(GreenBranch(type, buf, buf.textLength))
     }
 
-    inline fun createNode(type: T, crossinline fn: () -> Unit) {
+    inline fun createNode(type: T, crossinline fn: () -> Unit): Boolean {
         val node = MutableSyntaxNode(type)
         nodeStack.add(node)
         fn()
         nodeStack.removeLast()
-        nodeStack.last().add(node.toImmutable())
+        return node.valid().also { if (it) nodeStack.last().push(node.toImmutable()) }
     }
 
-    inline fun tryCreateNode(type: T, crossinline succeeded: () -> Boolean): Boolean {
+    inline fun nestLast(type: T, crossinline fn: () -> Unit) {
         val node = MutableSyntaxNode(type)
+        val last = nodeStack.last().pop()
         nodeStack.add(node)
-        val success = succeeded()
+        node.push(last)
+        fn()
         nodeStack.removeLast()
-        if (success) nodeStack.last().add(node.toImmutable())
-        return success
+        nodeStack.last().push(node.toImmutable())
     }
 
     fun push() = useBuffer { buf ->
         val node = nodeStack.last()
-        buf.forEach { node.add(it.value) }
+        buf.forEach { node.push(it.value) }
     }
 
-    fun finish(): Syntax<T> = when (nodeStack.size) {
+    fun finish(): GreenNode<T> = when (nodeStack.size) {
         1 -> nodeStack.first().toImmutable()
         0 -> error("Node stack is empty")
         else -> error("Node stack has more than 1 element")
@@ -84,10 +78,19 @@ class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
 
 @PublishedApi
 internal class MutableSyntaxNode<T : SyntaxType>(private val type: T) {
-    private val children = mutableListOf<SyntaxChild<T>>()
+    private val children = mutableListOf<GreenChild<T>>()
 
-    fun add(node: Syntax<T>) {
-        children.add(SyntaxChild(children.textLength, node))
+    fun push(node: GreenNode<T>) {
+        children.add(GreenChild(children.textLength, node))
     }
-    fun toImmutable() = SyntaxNode(type, children, children.textLength)
+
+    fun pop(): GreenNode<T> {
+        val res = children.last().value
+        children.removeLast()
+        return res
+    }
+
+    fun valid(): Boolean = children.isNotEmpty()
+
+    fun toImmutable() = GreenBranch(type, children, children.textLength)
 }

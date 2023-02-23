@@ -1,14 +1,14 @@
 package pistonlang.compiler.piston.parser
 
 import pistonlang.compiler.common.parser.Lexer
-import pistonlang.compiler.common.parser.SyntaxToken
+import pistonlang.compiler.common.parser.GreenLeaf
 
 const val eof = '\u0000'
 
 class PistonLexer(private val code: String) : Lexer<PistonType> {
     private fun getChar(pos: Int): Char = if (pos < code.length) code[pos] else eof
 
-    override fun ended(pos: Int) = pos >= code.length
+    fun ended(pos: Int) = pos >= code.length
 
     override fun lexToken(pos: Int): PistonToken = when (val char = getChar(pos)) {
         eof -> if (ended(pos)) Tokens.eof else Tokens.nullChar
@@ -42,7 +42,7 @@ class PistonLexer(private val code: String) : Lexer<PistonType> {
         '_' -> lexIdentifier(pos, pos + 1)
         else ->
             if (char.isLetter()) lexIdentifier(pos, pos + 1)
-            else SyntaxToken(PistonType.unknown, char.toString())
+            else GreenLeaf(PistonType.unknown, char.toString())
     }
 
     private fun lexZero(pos: Int) = when (getChar(pos)) {
@@ -90,7 +90,7 @@ class PistonLexer(private val code: String) : Lexer<PistonType> {
     }
 
     private fun tokenTill(start: Int, end: Int, type: PistonType): PistonToken =
-        SyntaxToken(type, code.substring(start, end))
+        GreenLeaf(type, code.substring(start, end))
 
     private tailrec fun lexComment(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
         '\n' -> tokenTill(start, pos, PistonType.comment)
@@ -161,32 +161,32 @@ class PistonLexer(private val code: String) : Lexer<PistonType> {
     }
 
     private fun lexChar(pos: Int) = when {
-        getChar(pos + 1) == '\'' -> SyntaxToken(PistonType.charLiteral, code.substring(pos - 1, pos + 2))
+        getChar(pos + 1) == '\'' -> GreenLeaf(PistonType.charLiteral, code.substring(pos - 1, pos + 2))
         else -> when (val curr = getChar(pos)) {
             '\n', eof -> Tokens.singleQuote
             else ->
-                if (curr.isWhitespace()) SyntaxToken(PistonType.charLiteral, code.substring(pos - 1, pos + 1))
+                if (curr.isWhitespace()) GreenLeaf(PistonType.charLiteral, code.substring(pos - 1, pos + 1))
                 else lexLongChar(pos - 1, pos)
         }
     }
 
     private fun lexLongChar(start: Int, pos: Int): PistonToken = when (val curr = getChar(pos)) {
         '\\' -> lexLongChar(start, pos + if (getChar(pos + 1) == '\'') 2 else 1)
-        '\'' -> SyntaxToken(PistonType.charLiteral, code.substring(start, pos + 1))
+        '\'' -> GreenLeaf(PistonType.charLiteral, code.substring(start, pos + 1))
         else ->
-            if (!curr.isWhitespace()) SyntaxToken(PistonType.charLiteral, code.substring(start, pos))
+            if (!curr.isWhitespace()) GreenLeaf(PistonType.charLiteral, code.substring(start, pos))
             else lexLongChar(start, pos + 1)
     }
 
     private tailrec fun lexString(start: Int, pos: Int): PistonToken = when (getChar(pos)) {
-        '\"' -> SyntaxToken(PistonType.stringLiteral, code.substring(start, pos + 1))
+        '\"' -> GreenLeaf(PistonType.stringLiteral, code.substring(start, pos + 1))
         '\\' -> when (getChar(pos + 1)) {
             '\\', '\"' -> lexString(start, pos + 2)
             else -> lexString(start, pos + 1)
         }
 
         eof ->
-            if (ended(pos)) SyntaxToken(PistonType.stringLiteral, code.substring(start, pos))
+            if (ended(pos)) GreenLeaf(PistonType.stringLiteral, code.substring(start, pos))
             else lexString(start, pos + 1)
 
         else -> lexString(start, pos + 1)
@@ -205,7 +205,7 @@ class PistonLexer(private val code: String) : Lexer<PistonType> {
         "null" -> Tokens.nullKw
         "true" -> Tokens.trueKw
         "false" -> Tokens.falseKw
-        else -> SyntaxToken(PistonType.identifier, ident)
+        else -> GreenLeaf(PistonType.identifier, ident)
     }
 }
 

@@ -4,7 +4,8 @@ import pistonlang.compiler.common.parser.SyntaxType
 
 enum class PistonType(
     override val ignorable: Boolean = false,
-    override val isNewline: Boolean = false
+    override val isNewline: Boolean = false,
+    override val isEOF: Boolean = false
 ) : SyntaxType {
     intLiteral,
     floatLiteral,
@@ -30,7 +31,7 @@ enum class PistonType(
     whitespace(ignorable = true),
     newline(ignorable = true, isNewline = true),
 
-    eof,
+    eof(isEOF = true),
     unknown,
 
     eq,
@@ -60,7 +61,7 @@ enum class PistonType(
 
     and,
     subtype,
-    superType,
+    supertype,
 
     pathSegment,
 
@@ -72,8 +73,6 @@ enum class PistonType(
     superExpression,
     literalExpression,
     identifierExpression,
-    term,
-    expression,
     timesExpression,
     plusExpression,
     relationExpression,
@@ -83,12 +82,13 @@ enum class PistonType(
     ternaryExpression,
     assignExpression,
 
+    typeAnnotation,
     functionParam,
     functionParams,
+    expressionBody,
 
     importGroup,
     importPath,
-    importValue,
     importSegment,
     import,
 
@@ -97,9 +97,7 @@ enum class PistonType(
     traitDef,
     functionDef,
 
-    statement,
-    statementBody,
-    StatementBlock,
+    statementBlock,
     file,
 
     typePath,
@@ -107,13 +105,12 @@ enum class PistonType(
     typeParams,
     typeArg,
     typeArgs,
-    whereClause,
+    typeGuard,
 
     nestedType,
     nullableType,
-    typeInstance,
     intersectionType,
-    superTypes,
+    supertypes,
 
-    error,
+    error;
 }
