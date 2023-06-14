@@ -2,43 +2,43 @@ package pistonlang.compiler.common.parser
 
 import pistonlang.compiler.util.EmptyIterator
 
-sealed interface GreenNode<T : SyntaxType> {
-    val type: T
+sealed interface GreenNode<Type : SyntaxType> {
+    val type: Type
     val length: Int
     val content: String
     val childCount: Int
-    val childIterator: Iterator<GreenChild<T>>
-    operator fun get(index: Int): GreenChild<T>
+    val childIterator: Iterator<GreenChild<Type>>
+    operator fun get(index: Int): GreenChild<Type>
 }
 
-data class GreenLeaf<T : SyntaxType>(override val type: T, override val content: String) : GreenNode<T> {
+data class GreenLeaf<Type : SyntaxType>(override val type: Type, override val content: String) : GreenNode<Type> {
     override val length: Int
         get() = content.length
 
     override val childCount: Int
         get() = 0
 
-    override fun get(index: Int): GreenChild<T> = error("Tokens have no children")
+    override fun get(index: Int): GreenChild<Type> = error("Tokens have no children")
 
-    override val childIterator: Iterator<GreenChild<T>>
+    override val childIterator: Iterator<GreenChild<Type>>
         get() = EmptyIterator
 }
 
-data class GreenBranch<T : SyntaxType>(
-    override val type: T,
-    private val children: List<GreenChild<T>>,
+data class GreenBranch<Type : SyntaxType>(
+    override val type: Type,
+    private val children: List<GreenChild<Type>>,
     override val length: Int
-) : GreenNode<T> {
+) : GreenNode<Type> {
     override val content: String
         get() = children.joinToString()
 
     override val childCount: Int
         get() = children.size
 
-    override fun get(index: Int): GreenChild<T> = children[index]
+    override fun get(index: Int): GreenChild<Type> = children[index]
 
-    override val childIterator: Iterator<GreenChild<T>>
-        get() = object : Iterator<GreenChild<T>> {
+    override val childIterator: Iterator<GreenChild<Type>>
+        get() = object : Iterator<GreenChild<Type>> {
             var index = 0
 
             override fun hasNext() = index < children.size
@@ -47,23 +47,23 @@ data class GreenBranch<T : SyntaxType>(
         }
 }
 
-fun <T: SyntaxType> GreenNode<T>.firstDirectChild(type: T) =
+fun <Type: SyntaxType> GreenNode<Type>.firstDirectChild(type: Type) =
     childIterator.asSequence().firstOrNull { it.type == type }
 
-fun <T> GreenNode<T>.firstDirectChild(set: SyntaxSet<T>) where T: SyntaxType, T: Enum<T> =
+fun <Type> GreenNode<Type>.firstDirectChild(set: SyntaxSet<Type>) where Type: SyntaxType, Type: Enum<Type> =
     childIterator.asSequence().firstOrNull { it.type in set }
 
-fun <T: SyntaxType> GreenNode<T>.lastDirectChild(type: T) =
+fun <Type: SyntaxType> GreenNode<Type>.lastDirectChild(type: Type) =
     childIterator.asSequence().lastOrNull { it.type == type }
 
-fun <T> GreenNode<T>.lastDirectChild(set: SyntaxSet<T>) where T: SyntaxType, T: Enum<T> =
+fun <Type> GreenNode<Type>.lastDirectChild(set: SyntaxSet<Type>) where Type: SyntaxType, Type: Enum<Type> =
     childIterator.asSequence().lastOrNull { it.type in set }
 
-typealias GreenChild<T> = Offset<GreenNode<T>>
+typealias GreenChild<Type> = Offset<GreenNode<Type>>
 
-data class Offset<out T>(val offset: Int, val value: T)
+data class Offset<out Type>(val offset: Int, val value: Type)
 
-val <T : SyntaxType> GreenChild<T>.type get() = this.value.type
+val <Type : SyntaxType> GreenChild<Type>.type get() = this.value.type
 
 val List<GreenChild<*>>.textLength: Int
     get() = if (isEmpty()) 0 else last().let { it.offset + it.value.length }

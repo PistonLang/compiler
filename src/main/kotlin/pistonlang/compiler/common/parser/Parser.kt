@@ -1,7 +1,8 @@
 package pistonlang.compiler.common.parser
 
-class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
-    private val stream = TokenStream(0, lexer)
+class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T, startPos: Int = 0) {
+    private val stream = TokenStream(lexer, startPos)
+
     @PublishedApi
     internal val nodeStack = mutableListOf(MutableSyntaxNode(resultType))
     private var buffer = buildSegment()
@@ -49,7 +50,7 @@ class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T) {
         nodeStack.add(node)
         fn()
         nodeStack.removeLast()
-        return node.valid().also { if (it) nodeStack.last().push(node.toImmutable()) }
+        return node.valid().also { valid -> if (valid) nodeStack.last().push(node.toImmutable()) }
     }
 
     inline fun nestLast(type: T, crossinline fn: () -> Unit) {

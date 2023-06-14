@@ -6,6 +6,8 @@ import pistonlang.compiler.common.parser.Parser
 private typealias P = Parser<PistonType>
 private typealias Ty = PistonType
 private typealias ClosedDelim = Boolean
+private typealias ConsumedToken = Boolean
+private typealias GotNode = Boolean
 
 enum class Precedence(val type: Ty) {
     None(Ty.eof),
@@ -18,16 +20,16 @@ enum class Precedence(val type: Ty) {
 }
 
 object PistonParsing {
-    private fun P.consume(type: Ty) = at(type).also { if (it) push() }
+    private fun P.consume(type: Ty): ConsumedToken = at(type).also { at -> if (at) push() }
 
-    private fun P.expect(type: Ty) = consume(type) || makeError()
+    private fun P.expect(type: Ty): GotNode = consume(type) || makeError()
 
-    private fun P.isRecoveryType() = when (currType) {
+    private fun P.isRecoveryType(): Boolean = when (currType) {
         Ty.valKw, Ty.varKw, Ty.eof, Ty.rBrace, Ty.classKw, Ty.traitKw, Ty.defKw -> true
         else -> false
     }
 
-    private fun P.makeError(): Boolean {
+    private fun P.makeError(): GotNode {
         if (isRecoveryType()) return false
         pushToNode(Ty.error)
         return true
@@ -47,18 +49,18 @@ object PistonParsing {
         parsePathTypeTail()
     }
 
-    private fun P.handleTypePath() = createNode(Ty.typePath) {
+    private fun P.handleTypePath(): GotNode = createNode(Ty.typePath) {
         handlePathSegment()
         parsePathTypeTail()
     }
 
-    private fun P.handleNestedType() = createNode(Ty.nestedType) {
+    private fun P.handleNestedType(): GotNode = createNode(Ty.nestedType) {
         push()  // lParen
         expectTypeInstance()
         expect(Ty.rParen)
     }
 
-    private fun P.expectTypeInstance(): Boolean {
+    private fun P.expectTypeInstance(): GotNode {
         when (currType) {
             Ty.identifier -> handleTypePath()
             Ty.lParen -> handleNestedType()
@@ -68,13 +70,13 @@ object PistonParsing {
         return true
     }
 
-    private fun P.expectTypeBound() = createNode(Ty.typeBound) {
+    private fun P.expectTypeBound(): GotNode = createNode(Ty.typeBound) {
         if (!expect(Ty.identifier)) return@createNode
 
         expect(Ty.subtype) && expectTypeInstance()
     }
 
-    private fun P.expectTypeArg() = createNode(Ty.typeArg) {
+    private fun P.expectTypeArg(): GotNode = createNode(Ty.typeArg) {
         when (currType) {
             Ty.subtype, Ty.supertype -> push()
             else -> {}
@@ -103,7 +105,7 @@ object PistonParsing {
         }
     }
 
-    private fun P.handleTypeGuard(): Boolean {
+    private fun P.handleTypeGuard(): GotNode {
         var res = true
         createNode(Ty.typeGuard) {
             push()      // whereKw
@@ -160,7 +162,7 @@ object PistonParsing {
         handleIntersectingTypes()
     }
 
-    private fun P.expectIntersectionType() = createNode(Ty.intersectionType) {
+    private fun P.expectIntersectionType(): GotNode = createNode(Ty.intersectionType) {
         if (!expectTypeInstance()) return@createNode
         handleIntersectingTypes()
     }
@@ -174,12 +176,12 @@ object PistonParsing {
         }
     }
 
-    private fun P.handlePathSegment() = createNode(Ty.pathSegment) {
+    private fun P.handlePathSegment(): GotNode = createNode(Ty.pathSegment) {
         push()  // identifier
         parseTypeArgs()
     }
 
-    private fun P.parseStatement() = when (currType) {
+    private fun P.parseStatement(): GotNode = when (currType) {
         Ty.classKw -> handleClassDef()
         Ty.traitKw -> handleTraitDef()
         Ty.valKw, Ty.varKw -> handlePropertyDef()
@@ -187,11 +189,11 @@ object PistonParsing {
         else -> false
     }
 
-    private fun P.parseTypeAnnotation() = createNode(Ty.typeAnnotation) {
-        consume(Ty.colon).also { if (it) expectTypeInstance() }
+    private fun P.parseTypeAnnotation(): GotNode = createNode(Ty.typeAnnotation) {
+        consume(Ty.colon).also { gotColon -> if (gotColon) expectTypeInstance() }
     }
 
-    private fun P.expectParam() = createNode(Ty.functionParam) {
+    private fun P.expectParam(): GotNode = createNode(Ty.functionParam) {
         if (!consume(Ty.identifier)) {
             makeError()
             return@createNode
@@ -213,7 +215,7 @@ object PistonParsing {
         }
     }
 
-    private fun P.expectStatement() = parseStatement() || makeError()
+    private fun P.expectStatement(): GotNode = parseStatement() || makeError()
 
     private fun P.handleDeclarationStatements(): ClosedDelim =
         handleList(Ty.rBrace) { expectStatement() }
@@ -228,22 +230,22 @@ object PistonParsing {
         }
     }
 
-    private fun P.handleIdentifierExpression() = createNode(Ty.identifierExpression) {
+    private fun P.handleIdentifierExpression(): GotNode = createNode(Ty.identifierExpression) {
         handlePathSegment()
     }
 
-    private fun P.handleNestedExpression() = createNode(Ty.nestedExpression) {
+    private fun P.handleNestedExpression(): GotNode = createNode(Ty.nestedExpression) {
         push()      // lParen
         expectExpression()
         expect(Ty.rParen)
     }
 
-    private fun P.handleUnaryExpression() = createNode(Ty.unaryExpression) {
+    private fun P.handleUnaryExpression(): GotNode = createNode(Ty.unaryExpression) {
         push()      // plus/minus
         expectTerm()
     }
 
-    private fun P.expectTerm() = parseTerm() || makeError()
+    private fun P.expectTerm(): GotNode = parseTerm() || makeError()
 
     private fun P.handleAccessExpression() = nestLast(Ty.accessExpression) {
         push()      // dot
@@ -259,7 +261,7 @@ object PistonParsing {
             push()  // rParen
     }
 
-    private fun P.expectPathSegment(): Boolean =
+    private fun P.expectPathSegment(): GotNode =
         if (at(Ty.identifier)) {
             handlePathSegment()
             true
@@ -280,7 +282,7 @@ object PistonParsing {
         handlePostfix()
     }
 
-    private fun P.parseTerm(): Boolean {
+    private fun P.parseTerm(): GotNode {
         when (currType) {
             Ty.identifier -> handleIdentifierExpression()
             Ty.lParen -> handleNestedExpression()
@@ -299,7 +301,7 @@ object PistonParsing {
         return true
     }
 
-    private fun P.currPrecedence() = when (currType) {
+    private fun P.currPrecedence(): Precedence = when (currType) {
         Ty.star, Ty.slash -> Precedence.Times
         Ty.plus, Ty.minus -> Precedence.Plus
         Ty.less, Ty.lessEq, Ty.greater, Ty.greaterEq -> Precedence.Relation
@@ -342,7 +344,7 @@ object PistonParsing {
         }
     }
 
-    private fun P.expectExpression(): Boolean =
+    private fun P.expectExpression(): GotNode =
         if (parseTerm()) {
             handleBinaryExpression()
             true
@@ -357,7 +359,7 @@ object PistonParsing {
         }
     }
 
-    private fun P.handleClassDef() = createNode(Ty.classDef) {
+    private fun P.handleClassDef(): GotNode = createNode(Ty.classDef) {
         push()      // classKw
         if (!expect(Ty.identifier)) return@createNode
         parseTypeParams()
@@ -366,14 +368,14 @@ object PistonParsing {
         parseStatementBody()
     }
 
-    private fun P.handlePropertyDef() = createNode(Ty.propertyDef) {
+    private fun P.handlePropertyDef(): GotNode = createNode(Ty.propertyDef) {
         push()      // valKw/varKw
         if (!expect(Ty.identifier)) return@createNode
         parseTypeAnnotation()
         parseExpressionBody()
     }
 
-    private fun P.handleFunctionDef() = createNode(Ty.functionDef) {
+    private fun P.handleFunctionDef(): GotNode = createNode(Ty.functionDef) {
         push()      // defKw
         if (!expect(Ty.identifier)) return@createNode
         parseTypeParams()
@@ -382,7 +384,7 @@ object PistonParsing {
         parseExpressionBody()
     }
 
-    private fun P.handleTraitDef() = createNode(Ty.traitDef) {
+    private fun P.handleTraitDef(): GotNode = createNode(Ty.traitDef) {
         push()      // traitKw
         if (!expect(Ty.identifier)) return@createNode
         parseTypeParams()
@@ -397,12 +399,12 @@ object PistonParsing {
         handleImportPathTail()
     }
 
-    private fun P.handleImportPath() = createNode(Ty.importPath) {
+    private fun P.handleImportPath(): GotNode = createNode(Ty.importPath) {
         push()      // identifier
         handleImportPathTail()
     }
 
-    private fun P.expectImportSegment(): Boolean =
+    private fun P.expectImportSegment(): GotNode =
         if (at(Ty.identifier)) createNode(Ty.importSegment) {
             handleImportPath()
             if (consume(Ty.colon))
@@ -412,7 +414,7 @@ object PistonParsing {
     private fun P.handleImportSegment(): ClosedDelim =
         handleList(Ty.rBrace) { expectImportSegment() }
 
-    private fun P.expectImportGroup() = createNode(Ty.importGroup) {
+    private fun P.expectImportGroup(): GotNode = createNode(Ty.importGroup) {
         if (!consume(Ty.lBrace)) {
             makeError()
             return@createNode

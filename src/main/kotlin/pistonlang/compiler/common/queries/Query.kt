@@ -14,11 +14,8 @@ class InputQuery<K, V>(private val versionData: QueryVersionData, val default: (
         InputQueryValue(versionData.current, default())
     }
 
-    operator fun set(key: K, value: V): InputQueryValue<V> {
-        val value = InputQueryValue(versionData.update(), value)
-        backing[key] = value
-        return value
-    }
+    operator fun set(key: K, value: V): InputQueryValue<V> =
+        InputQueryValue(versionData.update(), value).also { backing[key] = it }
 }
 
 class Query<K, V>(

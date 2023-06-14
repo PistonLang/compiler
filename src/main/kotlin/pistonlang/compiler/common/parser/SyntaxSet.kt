@@ -4,7 +4,7 @@ import java.util.*
 
 @JvmInline
 value class SyntaxSet<T> internal constructor(private val set: BitSet) where T : SyntaxType, T : Enum<T> {
-    operator fun contains(item: T) = set[item.ordinal]
+    operator fun contains(item: T): Boolean = set[item.ordinal]
 
     infix fun union(other: SyntaxSet<T>): SyntaxSet<T> {
         val new = BitSet(set.size())

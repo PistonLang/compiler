@@ -8,7 +8,7 @@ class RedNode<T : SyntaxType>(
     val green: GreenNode<T>,
     val pos: Int
 ) {
-    fun wrap(child: GreenChild<T>) = RedNode(this, child.value, pos + child.offset)
+    internal fun wrap(child: GreenChild<T>) = RedNode(this, child.value, pos + child.offset)
 
     operator fun get(pos: Int) = green[pos].let(this::wrap)
 
@@ -30,6 +30,8 @@ class RedNode<T : SyntaxType>(
         }
 
     fun findAt(span: IntRange, type: T) = findAt(this, span, type)
+
+    fun findAt(pos: AbsoluteNodeLoc<T>) = findAt(pos.pos, pos.type)
 
     fun firstDirectChild(type: T) = green.firstDirectChild(type)?.let(this::wrap)
 
@@ -62,13 +64,13 @@ class RedNode<T : SyntaxType>(
     }
 }
 
-fun <T> RedNode<T>.firstDirectChild(set: SyntaxSet<T>) where T: SyntaxType, T: Enum<T> =
+fun <T> RedNode<T>.firstDirectChild(set: SyntaxSet<T>) where T : SyntaxType, T : Enum<T> =
     green.firstDirectChild(set)?.let(this::wrap)
 
-fun <T> RedNode<T>.lastDirectChild(set: SyntaxSet<T>) where T: SyntaxType, T: Enum<T> =
+fun <T> RedNode<T>.lastDirectChild(set: SyntaxSet<T>) where T : SyntaxType, T : Enum<T> =
     green.lastDirectChild(set)?.let(this::wrap)
 
-private tailrec fun <T: SyntaxType> findAt(node: RedNode<T>, span: IntRange, type: T): RedNode<T>? {
+private tailrec fun <T : SyntaxType> findAt(node: RedNode<T>, span: IntRange, type: T): RedNode<T>? {
     if (node.type == type && node.span == span) return node
     if (node.childCount == 0) return null
 
@@ -87,15 +89,15 @@ private tailrec fun <T: SyntaxType> findAt(node: RedNode<T>, span: IntRange, typ
     return null
 }
 
-private tailrec fun <T: SyntaxType> findParent(node: RedNode<T>, type: T): RedNode<T>? {
+private tailrec fun <T : SyntaxType> findParent(node: RedNode<T>, type: T): RedNode<T>? {
     val par = node.parent ?: return null
     return if (par.type == type) par else findParent(par, type)
 }
 
-private tailrec fun <T> findParent(node: RedNode<T>, set: SyntaxSet<T>): RedNode<T>? where T: SyntaxType, T: Enum<T> {
+private tailrec fun <T> findParent(node: RedNode<T>, set: SyntaxSet<T>): RedNode<T>? where T : SyntaxType, T : Enum<T> {
     val par = node.parent ?: return null
     return if (par.type in set) par else findParent(par, set)
 }
 
-fun <T> RedNode<T>.findParent(set: SyntaxSet<T>): RedNode<T>? where T: SyntaxType, T: Enum<T> =
+fun <T> RedNode<T>.findParent(set: SyntaxSet<T>): RedNode<T>? where T : SyntaxType, T : Enum<T> =
     findParent(this, set)

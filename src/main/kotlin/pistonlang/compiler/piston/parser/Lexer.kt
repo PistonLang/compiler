@@ -8,7 +8,7 @@ const val eof = '\u0000'
 class PistonLexer(private val code: String) : Lexer<PistonType> {
     private fun getChar(pos: Int): Char = if (pos < code.length) code[pos] else eof
 
-    fun ended(pos: Int) = pos >= code.length
+    private fun ended(pos: Int) = pos >= code.length
 
     override fun lexToken(pos: Int): PistonToken = when (val char = getChar(pos)) {
         eof -> if (ended(pos)) Tokens.eof else Tokens.nullChar
@@ -209,7 +209,7 @@ class PistonLexer(private val code: String) : Lexer<PistonType> {
     }
 }
 
-object AlphaGroup {
+internal object AlphaGroup {
     operator fun contains(char: Char) = when (char) {
         in 'a'..'z', in 'A'..'Z', in '0'..'9', '\'' -> true
         else -> char.isLetterOrDigit()

@@ -1,6 +1,7 @@
 package pistonlang.compiler.piston.parser
 
 import pistonlang.compiler.common.parser.SyntaxType
+import pistonlang.compiler.common.parser.syntaxSet
 
 enum class PistonType(
     override val ignorable: Boolean = false,
@@ -113,4 +114,10 @@ enum class PistonType(
     supertypes,
 
     error;
+}
+
+object PistonSyntaxSets {
+    val defs = syntaxSet(
+        PistonType.classDef, PistonType.traitDef, PistonType.functionDef, PistonType.propertyDef,
+    )
 }
