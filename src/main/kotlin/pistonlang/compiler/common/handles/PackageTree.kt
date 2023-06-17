@@ -1,10 +1,13 @@
-package pistonlang.compiler.common.files
+package pistonlang.compiler.common.handles
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 
 val emptyPackageTree = PackageTree(persistentMapOf(), emptyList())
 
+/**
+ * A persistent tree representing the package/file hierarchy of a project
+ */
 data class PackageTree(val children: PersistentMap<String, PackageTree>, val files: List<FileHandle>) {
     fun add(pack: PackageHandle, file: FileHandle): PackageTree =
         add(pack.path, 0, file)

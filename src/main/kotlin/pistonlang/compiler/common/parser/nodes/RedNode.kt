@@ -1,5 +1,8 @@
-package pistonlang.compiler.common.parser
+package pistonlang.compiler.common.parser.nodes
 
+import pistonlang.compiler.common.language.SyntaxType
+import pistonlang.compiler.common.parser.AbsoluteNodeLoc
+import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.contains
 import pistonlang.compiler.util.isBefore
 
@@ -42,6 +45,15 @@ class RedNode<T : SyntaxType>(
     fun format(builder: StringBuilder, prefix: String) {
         builder
             .append(type.name.replaceFirstChar(Char::titlecase))
+
+
+        if (type.dynamic)
+            builder
+                .append('(')
+                .append(green.content)
+                .append(')')
+
+        builder
             .append('@')
             .append(pos)
 
@@ -94,6 +106,7 @@ private tailrec fun <T : SyntaxType> findParent(node: RedNode<T>, type: T): RedN
     return if (par.type == type) par else findParent(par, type)
 }
 
+@JvmName("tailrecFindParent")
 private tailrec fun <T> findParent(node: RedNode<T>, set: SyntaxSet<T>): RedNode<T>? where T : SyntaxType, T : Enum<T> {
     val par = node.parent ?: return null
     return if (par.type in set) par else findParent(par, set)

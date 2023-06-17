@@ -1,4 +1,4 @@
-package pistonlang.compiler.common.parser
+package pistonlang.compiler.common.language
 
 /**
  * The type of a syntax node of a particular grammar
@@ -7,6 +7,7 @@ package pistonlang.compiler.common.parser
  */
 interface SyntaxType {
     val name: String
+    val dynamic: Boolean
     val ignorable: Boolean
     val isNewline: Boolean
     val isEOF: Boolean

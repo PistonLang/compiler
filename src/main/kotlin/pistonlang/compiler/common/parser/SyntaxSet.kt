@@ -1,5 +1,6 @@
 package pistonlang.compiler.common.parser
 
+import pistonlang.compiler.common.language.SyntaxType
 import java.util.*
 
 @JvmInline

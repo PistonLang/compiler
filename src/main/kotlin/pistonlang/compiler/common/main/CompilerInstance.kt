@@ -1,8 +1,8 @@
 package pistonlang.compiler.common.main
 
-import pistonlang.compiler.common.LanguageHandler
-import pistonlang.compiler.common.files.*
-import pistonlang.compiler.common.parser.SyntaxType
+import pistonlang.compiler.common.language.LanguageHandler
+import pistonlang.compiler.common.handles.*
+import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.queries.InputQuery
 import pistonlang.compiler.common.queries.Query
 import pistonlang.compiler.common.queries.QueryVersionData
@@ -19,8 +19,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     private val changes: Queue<FileChange> = ConcurrentLinkedQueue()
     private val handlers: MutableMap<String, LanguageHandler<*>> = hashMapOf()
 
-    fun <T : SyntaxType> addHandler(handlerFn: (CompilerInstance) -> LanguageHandler<T>) {
-        val handler = handlerFn(this)
+    fun <T : SyntaxType> addHandler(handler: LanguageHandler<T>) {
         handler.extensions.forEach { ext ->
             handlers[ext] = handler
         }
@@ -85,8 +84,10 @@ class CompilerInstance(val versionData: QueryVersionData) {
             node.files.forEach { file ->
                 val handler = fileHandlerQuery[file].value ?: return@forEach
                 handler.fileItems[file].value.forEach { (name, list) ->
-                    list.indices.forEach { index ->
-                        res.getOrPut(name) { mutableListOf() }.add(ItemHandle(file, name, index))
+                    ItemType.values().forEach { type ->
+                        list.iteratorFor(type).withIndex().forEach { (index, value)->
+                            res.getOrPut(name) { mutableListOf() }.add(ItemHandle(value.parent, name, type, index))
+                        }
                     }
                 }
             }

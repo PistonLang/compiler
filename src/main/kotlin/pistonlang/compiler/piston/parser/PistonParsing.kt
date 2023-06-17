@@ -1,6 +1,6 @@
 package pistonlang.compiler.piston.parser
 
-import pistonlang.compiler.common.parser.GreenNode
+import pistonlang.compiler.common.parser.nodes.GreenNode
 import pistonlang.compiler.common.parser.Parser
 
 private typealias P = Parser<PistonType>
@@ -168,7 +168,7 @@ object PistonParsing {
     }
 
     private fun P.parseSupertypes() {
-        if (!at(Ty.supertype)) return
+        if (!at(Ty.subtype)) return
 
         createNode(Ty.supertypes) {
             push()  // supertype

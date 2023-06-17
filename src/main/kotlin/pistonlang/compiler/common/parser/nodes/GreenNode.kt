@@ -1,5 +1,8 @@
-package pistonlang.compiler.common.parser
+package pistonlang.compiler.common.parser.nodes
 
+import pistonlang.compiler.common.parser.SyntaxSet
+import pistonlang.compiler.common.language.SyntaxType
+import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.util.EmptyIterator
 
 sealed interface GreenNode<Type : SyntaxType> {
@@ -64,6 +67,15 @@ typealias GreenChild<Type> = Offset<GreenNode<Type>>
 data class Offset<out Type>(val offset: Int, val value: Type)
 
 val <Type : SyntaxType> GreenChild<Type>.type get() = this.value.type
+
+val <Type: SyntaxType> GreenChild<Type>.content get() = value.content
+
+val <Type: SyntaxType> GreenChild<Type>.length get() = value.length
+
+val <Type: SyntaxType> GreenChild<Type>.endPos get() = offset + length
+
+val <Type: SyntaxType> GreenChild<Type>.parentRelativeLocation: RelativeNodeLoc<Type>
+    get() = RelativeNodeLoc(offset..endPos, type)
 
 val List<GreenChild<*>>.textLength: Int
     get() = if (isEmpty()) 0 else last().let { it.offset + it.value.length }

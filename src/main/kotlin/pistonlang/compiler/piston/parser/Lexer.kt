@@ -1,7 +1,7 @@
 package pistonlang.compiler.piston.parser
 
 import pistonlang.compiler.common.parser.Lexer
-import pistonlang.compiler.common.parser.GreenLeaf
+import pistonlang.compiler.common.parser.nodes.GreenLeaf
 
 const val eof = '\u0000'
 

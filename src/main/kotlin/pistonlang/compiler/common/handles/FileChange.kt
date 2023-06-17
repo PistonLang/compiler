@@ -1,4 +1,4 @@
-package pistonlang.compiler.common.files
+package pistonlang.compiler.common.handles
 
 import pistonlang.compiler.common.queries.QueryVersion
 

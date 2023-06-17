@@ -1,5 +1,8 @@
 package pistonlang.compiler.common.parser
 
+import pistonlang.compiler.common.language.SyntaxType
+import pistonlang.compiler.common.parser.nodes.*
+
 class Parser<T : SyntaxType>(lexer: Lexer<T>, resultType: T, startPos: Int = 0) {
     private val stream = TokenStream(lexer, startPos)
 

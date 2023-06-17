@@ -1,6 +1,6 @@
 package pistonlang.compiler.piston.parser
 
-import pistonlang.compiler.common.parser.GreenLeaf
+import pistonlang.compiler.common.parser.nodes.GreenLeaf
 
 typealias PistonToken = GreenLeaf<PistonType>
 

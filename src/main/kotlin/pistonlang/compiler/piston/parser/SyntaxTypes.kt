@@ -1,17 +1,18 @@
 package pistonlang.compiler.piston.parser
 
-import pistonlang.compiler.common.parser.SyntaxType
+import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.parser.syntaxSet
 
 enum class PistonType(
     override val ignorable: Boolean = false,
     override val isNewline: Boolean = false,
-    override val isEOF: Boolean = false
+    override val isEOF: Boolean = false,
+    override val dynamic: Boolean = false
 ) : SyntaxType {
-    intLiteral,
-    floatLiteral,
-    charLiteral,
-    stringLiteral,
+    intLiteral(dynamic = true),
+    floatLiteral(dynamic = true),
+    charLiteral(dynamic = true),
+    stringLiteral(dynamic = true),
 
     thisKw,
     superKw,
@@ -26,14 +27,14 @@ enum class PistonType(
     trueKw,
     falseKw,
 
-    identifier,
+    identifier(dynamic = true),
 
-    comment(ignorable = true),
-    whitespace(ignorable = true),
+    comment(ignorable = true, dynamic = true),
+    whitespace(ignorable = true, dynamic = true),
     newline(ignorable = true, isNewline = true),
 
     eof(isEOF = true),
-    unknown,
+    unknown(dynamic = true),
 
     eq,
     eqEq,
