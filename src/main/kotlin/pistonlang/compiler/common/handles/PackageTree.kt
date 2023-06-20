@@ -3,12 +3,14 @@ package pistonlang.compiler.common.handles
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 
-val emptyPackageTree = PackageTree(persistentMapOf(), emptyList())
-
 /**
  * A persistent tree representing the package/file hierarchy of a project
  */
-data class PackageTree(val children: PersistentMap<String, PackageTree>, val files: List<FileHandle>) {
+data class PackageTree(
+    val handle: PackageHandle,
+    val children: PersistentMap<String, PackageTree>,
+    val files: List<FileHandle>
+) {
     fun add(pack: PackageHandle, file: FileHandle): PackageTree =
         add(pack.path, 0, file)
 
@@ -16,12 +18,13 @@ data class PackageTree(val children: PersistentMap<String, PackageTree>, val fil
         if (index == path.size) return add(file)
 
         val key = path[index]
-        val node = children[key] ?: PackageTree(persistentMapOf(), emptyList())
+        val node = children[key]
+            ?: PackageTree(PackageHandle(handle.path + key), persistentMapOf(), emptyList())
         val new = node.add(path, index + 1, file)
-        return PackageTree(children.put(key, new), files)
+        return PackageTree(handle, children.put(key, new), files)
     }
 
-    private fun add(file: FileHandle): PackageTree = PackageTree(children, files + file)
+    private fun add(file: FileHandle): PackageTree = this.copy(files = files + file)
 
     private fun isEmpty() = children.isEmpty() && files.isEmpty()
 
@@ -34,12 +37,12 @@ data class PackageTree(val children: PersistentMap<String, PackageTree>, val fil
         val key = path[index]
         val newChild = children[key]?.remove(path, index + 1, file) ?: return this
 
-        return if (newChild.isEmpty()) PackageTree(children.remove(key), files)
-        else PackageTree(children.put(key, newChild), files)
+        return if (newChild.isEmpty()) this.copy(children = children.remove(key))
+        else this.copy(children = children.put(key, newChild))
     }
 
     private fun remove(file: FileHandle): PackageTree =
-        PackageTree(children, files - file)
+        this.copy(files = files - file)
 
     fun nodeFor(handle: PackageHandle) = nodeFor(handle.path, 0, this)
 }

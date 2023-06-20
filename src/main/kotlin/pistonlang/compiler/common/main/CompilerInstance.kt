@@ -1,7 +1,8 @@
 package pistonlang.compiler.common.main
 
-import pistonlang.compiler.common.language.LanguageHandler
+import kotlinx.collections.immutable.persistentMapOf
 import pistonlang.compiler.common.handles.*
+import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.queries.InputQuery
 import pistonlang.compiler.common.queries.Query
@@ -25,15 +26,13 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    private val fileHandlerQuery: Query<FileHandle, LanguageHandler<*>?> = run {
+    private val fileHandler: Query<FileHandle, LanguageHandler<*>?> = run {
         val handleFun = { key: FileHandle ->
             val ext = key.path.substringAfterLast('.')
             handlers[ext]
         }
-        Query(versionData, handleFun) { key, old, version ->
-            val code = code[key]
-            if (code.modified < version) old.copy(checked = version)
-            else handleFun(key).toQueryValue(version)
+        Query(versionData, handleFun) { _, old, version ->
+            old.copy(checked = version)
         }
     }
 
@@ -45,47 +44,56 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
         Query(versionData, packFun) { key, old, version ->
             val ops = options[Unit]
-            if (ops.modified < version) old.copy(checked = version)
+            if (ops.modified <= old.checked) old.copy(checked = version)
             else packFun(key).toQueryValue(version)
         }
     }
 
     // TODO: Handle option changes
-    private val packageTree: Query<Unit, PackageTree> = run {
-        val default = { _: Unit -> emptyPackageTree }
+    val packageTree: Query<Unit, PackageTree> = run {
+        val default = { _: Unit ->
+            var tree = PackageTree(PackageHandle(emptyList()), persistentMapOf(), emptyList())
+            while (changes.isNotEmpty()) {
+                tree = applyFileChange(tree, changes.poll())
+            }
+            tree
+        }
         Query(versionData, default) { _, old, version ->
             var tree = old.value
             while (changes.isNotEmpty() && changes.peek().version <= version) {
-                val change = changes.poll()
-                when (change.type) {
-                    ChangeType.Addition -> {
-                        val pack = filePackage[change.file]
-                        tree = tree.add(pack.value, change.file)
-                    }
-
-                    ChangeType.Update -> {}
-                    ChangeType.Removal -> {
-                        val pack = filePackage[change.file]
-                        tree = tree.remove(pack.value, change.file)
-                    }
-                }
+                tree = applyFileChange(tree, changes.poll())
             }
             tree.toQueryValue(version)
         }
     }
 
-    private val packageItems: Query<PackageHandle, Map<String, List<PathDefinedHandle>>> = run {
+    private fun applyFileChange(tree: PackageTree, change: FileChange): PackageTree =
+        when (change.type) {
+            ChangeType.Addition -> {
+                val pack = filePackage[change.file]
+                tree.add(pack.value, change.file)
+            }
+
+            ChangeType.Update -> tree
+
+            ChangeType.Removal -> {
+                val pack = filePackage[change.file]
+                tree.remove(pack.value, change.file)
+            }
+        }
+
+    val packageItems: Query<PackageHandle, Map<String, List<ReferencableHandle>>> = run {
         val collectFn = fn@{ key: PackageHandle ->
-            val node = packageTree[Unit].value.nodeFor(key) ?: return@fn emptyMap<String, List<PathDefinedHandle>>()
-            val res = mutableMapOf<String, MutableList<PathDefinedHandle>>()
+            val node = packageTree[Unit].value.nodeFor(key) ?: return@fn emptyMap<String, List<ReferencableHandle>>()
+            val res = mutableMapOf<String, MutableList<ReferencableHandle>>()
             node.children.forEach { (name, _) ->
                 res.getOrPut(name) { mutableListOf() }.add(PackageHandle(key.path + name))
             }
             node.files.forEach { file ->
-                val handler = fileHandlerQuery[file].value ?: return@forEach
+                val handler = fileHandler[file].value ?: return@forEach
                 handler.fileItems[file].value.forEach { (name, list) ->
                     ItemType.values().forEach { type ->
-                        list.iteratorFor(type).withIndex().forEach { (index, value)->
+                        list.iteratorFor(type).withIndex().forEach { (index, value) ->
                             res.getOrPut(name) { mutableListOf() }.add(ItemHandle(value.parent, name, type, index))
                         }
                     }

@@ -66,6 +66,7 @@ enum class PistonType(
     supertype,
 
     pathSegment,
+    pathAccess,
 
     nestedExpression,
     accessExpression,
@@ -90,7 +91,7 @@ enum class PistonType(
     expressionBody,
 
     importGroup,
-    importPath,
+    importPathAccess,
     importSegment,
     import,
 
@@ -120,5 +121,13 @@ enum class PistonType(
 object PistonSyntaxSets {
     val defs = syntaxSet(
         PistonType.classDef, PistonType.traitDef, PistonType.functionDef, PistonType.propertyDef,
+    )
+
+    val importPath = syntaxSet(
+        PistonType.importPathAccess, PistonType.identifier
+    )
+
+    val typePath = syntaxSet(
+        PistonType.pathAccess, PistonType.identifier
     )
 }

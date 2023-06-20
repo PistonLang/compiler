@@ -7,7 +7,7 @@ import pistonlang.compiler.common.parser.nodes.RedNode
 import kotlin.test.assertEquals
 
 class PistonParsingTest {
-    val codeExpectedMap: Map<String, String> = mapOf(
+    private val codeExpectedMap: List<Pair<String, String>> = listOf(
         "def test[T](a: Int, b: Int, c: T) = println((a + b).toString() + c)" to """
 File@0
 └─FunctionDef@0
@@ -112,7 +112,7 @@ File@0
         def print() = 'C'.println()
     }
     """.trimIndent() to """
-        File@0
+File@0
 ├─FunctionDef@0
 │ ├─DefKw@0
 │ ├─Whitespace( )@3
@@ -354,7 +354,96 @@ File@0
     │     └─RParen@278
     ├─Newline@279
     └─RBrace@280
-    """.trimIndent()
+    """.trimIndent(),
+        """
+            import {
+                foo.a               // function
+                bar: { a, b, c }    // val, var, package
+            }
+            
+            def useAll() = a(a + b) - c.d
+        """.trimIndent() to """
+File@0
+├─Import@0
+│ ├─ImportKw@0
+│ ├─Whitespace( )@6
+│ └─ImportGroup@7
+│   ├─LBrace@7
+│   ├─ImportSegment@8
+│   │ ├─Newline@8
+│   │ ├─Whitespace(    )@9
+│   │ └─ImportPathAccess@13
+│   │   ├─Identifier(foo)@13
+│   │   ├─Dot@16
+│   │   ├─Identifier(a)@17
+│   │   ├─Whitespace(               )@18
+│   │   └─Comment(// function)@33
+│   ├─ImportSegment@44
+│   │ ├─Newline@44
+│   │ ├─Whitespace(    )@45
+│   │ ├─Identifier(bar)@49
+│   │ ├─Colon@52
+│   │ ├─Whitespace( )@53
+│   │ └─ImportGroup@54
+│   │   ├─LBrace@54
+│   │   ├─Whitespace( )@55
+│   │   ├─ImportSegment@56
+│   │   │ └─Identifier(a)@56
+│   │   ├─Comma@57
+│   │   ├─Whitespace( )@58
+│   │   ├─ImportSegment@59
+│   │   │ └─Identifier(b)@59
+│   │   ├─Comma@60
+│   │   ├─Whitespace( )@61
+│   │   ├─ImportSegment@62
+│   │   │ ├─Identifier(c)@62
+│   │   │ └─Whitespace( )@63
+│   │   ├─RBrace@64
+│   │   ├─Whitespace(    )@65
+│   │   └─Comment(// val, var, package)@69
+│   ├─Newline@89
+│   └─RBrace@90
+└─FunctionDef@91
+  ├─Newline@91
+  ├─Newline@92
+  ├─DefKw@93
+  ├─Whitespace( )@96
+  ├─Identifier(useAll)@97
+  ├─FunctionParams@103
+  │ ├─LParen@103
+  │ ├─RParen@104
+  │ └─Whitespace( )@105
+  └─ExpressionBody@106
+    ├─Eq@106
+    ├─Whitespace( )@107
+    └─PlusExpression@108
+      ├─CallExpression@108
+      │ ├─IdentifierExpression@108
+      │ │ └─PathSegment@108
+      │ │   └─Identifier(a)@108
+      │ ├─LParen@109
+      │ ├─PlusExpression@110
+      │ │ ├─IdentifierExpression@110
+      │ │ │ └─PathSegment@110
+      │ │ │   ├─Identifier(a)@110
+      │ │ │   └─Whitespace( )@111
+      │ │ ├─Plus@112
+      │ │ ├─Whitespace( )@113
+      │ │ └─IdentifierExpression@114
+      │ │   └─PathSegment@114
+      │ │     └─Identifier(b)@114
+      │ ├─RParen@115
+      │ └─Whitespace( )@116
+      ├─Minus@117
+      ├─Whitespace( )@118
+      └─AccessExpression@119
+        ├─IdentifierExpression@119
+        │ └─PathSegment@119
+        │   └─Identifier(c)@119
+        ├─Dot@120
+        └─PathSegment@121
+          └─Identifier(d)@121
+        """.trimIndent()
     )
 
     @Test

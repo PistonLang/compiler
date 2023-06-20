@@ -2,11 +2,12 @@ package pistonlang.compiler.common.parser.nodes
 
 import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.parser.AbsoluteNodeLoc
+import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.contains
 import pistonlang.compiler.util.isBefore
 
-class RedNode<T : SyntaxType>(
+class RedNode<T : SyntaxType> internal constructor(
     val parent: RedNode<T>?,
     val green: GreenNode<T>,
     val pos: Int
@@ -18,6 +19,8 @@ class RedNode<T : SyntaxType>(
     val type get() = green.type
 
     val length get() = green.length
+
+    val content get() = green.content
 
     val span get() = pos..(pos + length)
 
@@ -32,13 +35,33 @@ class RedNode<T : SyntaxType>(
             override fun next() = green.next().let(this@RedNode::wrap)
         }
 
+    val childSequence get() = childIterator.asSequence()
+
+    val location get() = NodeLocation(span, type)
+
     fun findAt(span: IntRange, type: T) = findAt(this, span, type)
 
     fun findAt(pos: AbsoluteNodeLoc<T>) = findAt(pos.pos, pos.type)
 
     fun firstDirectChild(type: T) = green.firstDirectChild(type)?.let(this::wrap)
 
+    inline fun <Type : SyntaxType> GreenNode<Type>.firstDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
+        firstDirectChild(type) ?: fn()
+
+    inline fun <Type> GreenNode<Type>.firstDirectChildOr(
+        set: SyntaxSet<Type>,
+        fn: () -> RedNode<Type>
+    ) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
+
     fun lastDirectChild(type: T) = green.lastDirectChild(type)?.let(this::wrap)
+
+    inline fun <Type : SyntaxType> GreenNode<Type>.lastDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
+        lastDirectChild(type) ?: fn()
+
+    inline fun <Type> GreenNode<Type>.lastDirectChildOr(
+        set: SyntaxSet<Type>,
+        fn: () -> RedNode<Type>
+    ) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
 
     fun findParent(type: T) = findParent(this, type)
 
@@ -114,3 +137,5 @@ private tailrec fun <T> findParent(node: RedNode<T>, set: SyntaxSet<T>): RedNode
 
 fun <T> RedNode<T>.findParent(set: SyntaxSet<T>): RedNode<T>? where T : SyntaxType, T : Enum<T> =
     findParent(this, set)
+
+fun <T : SyntaxType> GreenNode<T>.asRedRoot() = RedNode(null, this, 0)

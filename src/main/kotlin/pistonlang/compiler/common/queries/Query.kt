@@ -31,7 +31,7 @@ class Query<K, V>(
             QueryValue(ver, ver, fn(key))
         }
 
-        if (current.checked >= ver) {
+        if (current.checked < ver) {
             val new = update(key, current, ver)
             backing[key] = new
             return new

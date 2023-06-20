@@ -1,8 +1,8 @@
 package pistonlang.compiler.common.parser.nodes
 
-import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.parser.RelativeNodeLoc
+import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.EmptyIterator
 
 sealed interface GreenNode<Type : SyntaxType> {
@@ -50,17 +50,63 @@ data class GreenBranch<Type : SyntaxType>(
         }
 }
 
-fun <Type: SyntaxType> GreenNode<Type>.firstDirectChild(type: Type) =
-    childIterator.asSequence().firstOrNull { it.type == type }
+val <Type: SyntaxType> GreenNode<Type>.childSequence get() = childIterator.asSequence()
 
-fun <Type> GreenNode<Type>.firstDirectChild(set: SyntaxSet<Type>) where Type: SyntaxType, Type: Enum<Type> =
-    childIterator.asSequence().firstOrNull { it.type in set }
+fun <Type : SyntaxType> GreenNode<Type>.firstDirectChild(type: Type) =
+    childSequence.firstOrNull { it.type == type }
 
-fun <Type: SyntaxType> GreenNode<Type>.lastDirectChild(type: Type) =
-    childIterator.asSequence().lastOrNull { it.type == type }
+inline fun <Type : SyntaxType> GreenNode<Type>.firstDirectChildOr(type: Type, fn: () -> GreenChild<Type>) =
+    firstDirectChild(type) ?: fn()
 
-fun <Type> GreenNode<Type>.lastDirectChild(set: SyntaxSet<Type>) where Type: SyntaxType, Type: Enum<Type> =
-    childIterator.asSequence().lastOrNull { it.type in set }
+fun <Type> GreenNode<Type>.firstDirectChild(set: SyntaxSet<Type>) where Type : SyntaxType, Type : Enum<Type> =
+    childSequence.firstOrNull { it.type in set }
+
+inline fun <Type> GreenNode<Type>.firstDirectChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenChild<Type>
+) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
+
+fun <Type : SyntaxType> GreenNode<Type>.lastDirectChild(type: Type) =
+    childSequence.lastOrNull { it.type == type }
+
+inline fun <Type : SyntaxType> GreenNode<Type>.lastDirectChildOr(type: Type, fn: () -> GreenChild<Type>) =
+    lastDirectChild(type) ?: fn()
+
+fun <Type> GreenNode<Type>.lastDirectChild(set: SyntaxSet<Type>) where Type : SyntaxType, Type : Enum<Type> =
+    childSequence.lastOrNull { it.type in set }
+
+inline fun <Type> GreenNode<Type>.lastDirectChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenChild<Type>,
+) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
+
+fun <Type : SyntaxType> GreenNode<Type>.firstDirectRawChild(type: Type) =
+    firstDirectChild(type)?.value
+
+inline fun <Type : SyntaxType> GreenNode<Type>.firstDirectRawChildOr(type: Type, fn: () -> GreenNode<Type>) =
+    firstDirectRawChild(type) ?: fn()
+
+fun <Type> GreenNode<Type>.firstDirectRawChild(set: SyntaxSet<Type>) where Type : SyntaxType, Type : Enum<Type> =
+    firstDirectChild(set)?.value
+
+inline fun <Type> GreenNode<Type>.firstDirectRawChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenNode<Type>
+) where Type : SyntaxType, Type : Enum<Type> = firstDirectRawChild(set) ?: fn()
+
+fun <Type : SyntaxType> GreenNode<Type>.lastDirectRawChild(type: Type) =
+    lastDirectChild(type)?.value
+
+inline fun <Type : SyntaxType> GreenNode<Type>.lastDirectRawChildOr(type: Type, fn: () -> GreenChild<Type>) =
+    lastDirectRawChild(type) ?: fn()
+
+fun <Type> GreenNode<Type>.lastDirectRawChild(set: SyntaxSet<Type>) where Type : SyntaxType, Type : Enum<Type> =
+    lastDirectChild(set)?.value
+
+inline fun <Type> GreenNode<Type>.lastDirectRawChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenChild<Type>,
+) where Type : SyntaxType, Type : Enum<Type> = lastDirectChild(set) ?: fn()
 
 typealias GreenChild<Type> = Offset<GreenNode<Type>>
 
@@ -68,13 +114,13 @@ data class Offset<out Type>(val offset: Int, val value: Type)
 
 val <Type : SyntaxType> GreenChild<Type>.type get() = this.value.type
 
-val <Type: SyntaxType> GreenChild<Type>.content get() = value.content
+val <Type : SyntaxType> GreenChild<Type>.content get() = value.content
 
-val <Type: SyntaxType> GreenChild<Type>.length get() = value.length
+val <Type : SyntaxType> GreenChild<Type>.length get() = value.length
 
-val <Type: SyntaxType> GreenChild<Type>.endPos get() = offset + length
+val <Type : SyntaxType> GreenChild<Type>.endPos get() = offset + length
 
-val <Type: SyntaxType> GreenChild<Type>.parentRelativeLocation: RelativeNodeLoc<Type>
+val <Type : SyntaxType> GreenChild<Type>.parentRelativeLocation: RelativeNodeLoc<Type>
     get() = RelativeNodeLoc(offset..endPos, type)
 
 val List<GreenChild<*>>.textLength: Int

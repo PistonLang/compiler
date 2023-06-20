@@ -44,10 +44,12 @@ object PistonParsing {
     private tailrec fun P.parsePathTypeTail() {
         if (!at(Ty.dot)) return
 
-        push()      // dot
-        expectPathSegment()
+        handlePathAccess()
         parsePathTypeTail()
     }
+
+
+    private fun P.handlePathAccess() = handleAccess(Ty.pathAccess)
 
     private fun P.handleTypePath(): GotNode = createNode(Ty.typePath) {
         handlePathSegment()
@@ -247,10 +249,13 @@ object PistonParsing {
 
     private fun P.expectTerm(): GotNode = parseTerm() || makeError()
 
-    private fun P.handleAccessExpression() = nestLast(Ty.accessExpression) {
+    private fun P.handleAccess(type: Ty) = nestLast(type) {
         push()      // dot
         expectPathSegment()
     }
+
+    private fun P.handleAccessExpression() = handleAccess(Ty.accessExpression)
+
 
     private fun P.handleArgsList(): ClosedDelim =
         handleList(Ty.rParen) { expectExpression() }
@@ -393,13 +398,17 @@ object PistonParsing {
     }
 
     private tailrec fun P.handleImportPathTail() {
-        if (consume(Ty.dot)) expect(Ty.identifier)
-        else return
+        if (!at(Ty.dot)) return
+
+        nestLast(Ty.importPathAccess) {
+            push()      // dot
+            expect(Ty.identifier)
+        }
 
         handleImportPathTail()
     }
 
-    private fun P.handleImportPath(): GotNode = createNode(Ty.importPath) {
+    private fun P.handleImportPath() {
         push()      // identifier
         handleImportPathTail()
     }

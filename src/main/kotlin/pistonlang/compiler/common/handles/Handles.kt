@@ -2,15 +2,18 @@ package pistonlang.compiler.common.handles
 
 sealed interface ParentHandle
 
-sealed interface PathDefinedHandle {
+sealed interface ReferencableHandle {
     val isNamespace: Boolean
-    val isPackage: Boolean
+    val isPackage: Boolean get() = false
+    val isError: Boolean get() = false
 }
 
 data class FileHandle(val path: String) : ParentHandle
 
 @JvmInline
-value class PackageHandle(val path: List<String>) : PathDefinedHandle {
+value class PackageHandle(val path: List<String>) : ReferencableHandle {
+    fun subpackage(name: String) = PackageHandle(path + name)
+
     override val isNamespace: Boolean
         get() = true
 
@@ -18,10 +21,18 @@ value class PackageHandle(val path: List<String>) : PathDefinedHandle {
         get() = true
 }
 
-data class ItemHandle(val file: ParentHandle, val name: String, val type: ItemType, val id: Int) : ParentHandle, PathDefinedHandle {
+data class ItemHandle(val file: ParentHandle, val name: String, val type: ItemType, val id: Int) : ParentHandle, ReferencableHandle {
     override val isNamespace: Boolean
         get() = type.type
+}
 
-    override val isPackage: Boolean
+/**
+ * This Handle is used for representing an error in places when a handle would be expected
+ */
+object NullHandle : ReferencableHandle {
+    override val isNamespace: Boolean
         get() = false
+
+    override val isError: Boolean
+        get() = true
 }
