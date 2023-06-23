@@ -1,7 +1,7 @@
 package pistonlang.compiler.common.language
 
-import pistonlang.compiler.common.handles.FileHandle
-import pistonlang.compiler.common.handles.ItemList
+import pistonlang.compiler.common.items.FileReference
+import pistonlang.compiler.common.items.ItemList
 import pistonlang.compiler.common.parser.nodes.GreenNode
 import pistonlang.compiler.common.queries.Query
 
@@ -11,6 +11,6 @@ import pistonlang.compiler.common.queries.Query
  */
 interface LanguageHandler<Type : SyntaxType> {
     val extensions: List<String>
-    val ast: Query<FileHandle, GreenNode<Type>>
-    val fileItems: Query<FileHandle, Map<String, ItemList<Type>>>
+    val ast: Query<FileReference, GreenNode<Type>>
+    val fileItems: Query<FileReference, Map<String, ItemList<Type>>>
 }

@@ -1,37 +1,34 @@
 package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
-import pistonlang.compiler.common.handles.*
+import org.junit.jupiter.api.assertAll
+import pistonlang.compiler.common.files.VirtualPackageTree
+import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.main.CompilerInstance
-import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.piston.TestFileTree
-import pistonlang.compiler.piston.add
-import pistonlang.compiler.piston.fileTree
 import pistonlang.compiler.piston.parser.PistonLexer
 import pistonlang.compiler.piston.parser.PistonParsing
-import pistonlang.compiler.piston.parser.PistonType
-import pistonlang.compiler.util.nonEmptyListOf
 import kotlin.test.assertEquals
 
 class ImportsTest {
-    private val testFileTree: TestFileTree = fileTree {
+    private val testVirtualPackageTree: VirtualPackageTree<Pair<String, String>> = virtualTree {
         child("foo") {
             file("a.pi") {
                 """
-                    def a(num: Int) = 2 * num
-                """.trimIndent()
+                    def a(num: Int32): Int32 = 2 * num
+                """.trimIndent() to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})"
             }
         }
         child("bar") {
             file("items.pi") {
                 """
-                    val a = 5
-                    var b = 10
-                """.trimIndent()
+                    val a: Int32 = 5
+                    var b: Int32 = 10
+                """.trimIndent() to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})"
             }
             child("c") {
-                file("empty.pi") { "" }
+                file("empty.pi") { "" to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})" }
             }
         }
         file("test.pi") {
@@ -41,88 +38,10 @@ class ImportsTest {
                     bar: { a, b, c }    // val, var, package
                 }
                 
-                def useAll() = a(a + b) - c.d
-            """.trimIndent()
+                def useAll(): Int32 = a(a + b) - c.d
+            """.trimIndent() to "ImportData(tree=ReferenceTree(dataList=[ReferenceData(location=NodeLocation(pos=10..11, type=identifier), references=NonEmptyList(list=[ItemReference(file=FileReference(path=foo/a.pi), name=a, type=Function, id=0)])), ReferenceData(location=NodeLocation(pos=49..50, type=identifier), references=NonEmptyList(list=[ItemReference(file=FileReference(path=bar/items.pi), name=a, type=Val, id=0)])), ReferenceData(location=NodeLocation(pos=52..53, type=identifier), references=NonEmptyList(list=[ItemReference(file=FileReference(path=bar/items.pi), name=b, type=Var, id=0)])), ReferenceData(location=NodeLocation(pos=55..56, type=identifier), references=NonEmptyList(list=[PackageReference(path=[bar, c])]))], nodes=[ReferenceTreeNode(fullRange=NodeLocation(pos=6..37, type=importPathAccess), index=0, children=[ReferenceTreeNode(fullRange=NodeLocation(pos=6..9, type=identifier), index=0, children=[])]), ReferenceTreeNode(fullRange=NodeLocation(pos=37..82, type=importSegment), index=-1, children=[ReferenceTreeNode(fullRange=NodeLocation(pos=42..45, type=identifier), index=1, children=[]), ReferenceTreeNode(fullRange=NodeLocation(pos=49..50, type=identifier), index=1, children=[]), ReferenceTreeNode(fullRange=NodeLocation(pos=52..53, type=identifier), index=2, children=[]), ReferenceTreeNode(fullRange=NodeLocation(pos=55..56, type=identifier), index=3, children=[])])]), nameMap={a=[0, 1], b=[2], c=[3]})"
         }
     }
-
-    private val expected: ImportData =
-        ImportData(
-            tree = HandleTree(
-                dataList = listOf(
-                    HandleData(
-                        location = NodeLocation(pos = 10..11, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            ItemHandle(
-                                file = FileHandle(path = "foo/a.pi"),
-                                name = "a",
-                                type = ItemType.Function,
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 49..50, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            ItemHandle(
-                                file = FileHandle(path = "bar/items.pi"),
-                                name = "a",
-                                type = ItemType.Val,
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 52..53, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            ItemHandle(
-                                file = FileHandle(path = "bar/items.pi"),
-                                name = "b",
-                                type = ItemType.Var,
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 55..56, type = PistonType.identifier),
-                        handles = nonEmptyListOf(PackageHandle(path = listOf("bar", "c")))
-                    )
-                ),
-                nodes = listOf(
-                    HandleTreeNode(
-                        fullRange = NodeLocation(pos = 6..37, type = PistonType.importPathAccess),
-                        index = 0,
-                        children = listOf(
-                            HandleTreeNode(
-                                fullRange = NodeLocation(pos = 6..9, type = PistonType.identifier),
-                                index = 0,
-                                children = emptyList()
-                            )
-                        )
-                    ),
-                    HandleTreeNode(
-                        fullRange = NodeLocation(pos = 37..82, type = PistonType.importSegment),
-                        index = -1,
-                        children = listOf(
-                            HandleTreeNode(
-                                fullRange = NodeLocation(pos = 42..45, type = PistonType.identifier),
-                                index = 1,
-                                children = emptyList()
-                            ), HandleTreeNode(
-                                fullRange = NodeLocation(pos = 49..50, type = PistonType.identifier),
-                                index = 1,
-                                children = emptyList()
-                            ), HandleTreeNode(
-                                fullRange = NodeLocation(pos = 52..53, type = PistonType.identifier),
-                                index = 2,
-                                children = emptyList()
-                            ), HandleTreeNode(
-                                fullRange = NodeLocation(pos = 55..56, type = PistonType.identifier),
-                                index = 3,
-                                children = emptyList()
-                            )
-                        )
-                    )
-                )
-            ), nameMap = mapOf("a" to listOf(0, 1), "b" to listOf(2), "c" to listOf(3))
-        )
 
     @Test
     fun testImports() {
@@ -130,7 +49,11 @@ class ImportsTest {
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)
 
-        instance.add(testFileTree)
-        assertEquals(expected, handler.fileImportData[FileHandle("test.pi")].value)
+        instance.add(testVirtualPackageTree.mapValues { it.first })
+        assertAll(testVirtualPackageTree.map { (file, data) ->
+            {
+                assertEquals(data.second, handler.fileImportData[file].value.toString())
+            }
+        })
     }
 }

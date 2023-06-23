@@ -7,36 +7,39 @@ data class QueryValue<V>(val modified: QueryVersion, val checked: QueryVersion, 
 
 fun <T> T.toQueryValue(version: QueryVersion) = QueryValue(version, version, this)
 
-class InputQuery<K, V>(private val versionData: QueryVersionData, val default: () -> V) {
-    private val backing = ConcurrentHashMap<K, InputQueryValue<V>>()
+class InputQuery<K, V>(private val versionData: QueryVersionData, private val default: () -> V) {
+    private val backing: MutableMap<K, InputQueryValue<V>> = ConcurrentHashMap<K, InputQueryValue<V>>()
 
-    operator fun get(key: K): InputQueryValue<V> = backing.getOrPut(key) {
-        InputQueryValue(versionData.current, default())
+    operator fun contains(key: K) = backing.contains(key)
+
+    operator fun get(key: K): InputQueryValue<V> = backing
+        .getOrPut(key) { InputQueryValue(versionData.current, default()) }
+
+    operator fun set(key: K, value: V): InputQueryValue<V> {
+        val res = InputQueryValue(versionData.update(), value)
+        backing.getOrPut(key) { res }
+        return res
     }
-
-    operator fun set(key: K, value: V): InputQueryValue<V> =
-        InputQueryValue(versionData.update(), value).also { backing[key] = it }
 }
 
 class Query<K, V>(
     private val versionData: QueryVersionData,
-    val fn: (K) -> V,
-    val update: (K, QueryValue<V>, QueryVersion) -> QueryValue<V>
+    private val fn: (K, QueryVersion) -> V,
+    private val update: (K, QueryValue<V>, QueryVersion) -> QueryValue<V>
 ) {
-    private val backing = ConcurrentHashMap<K, QueryValue<V>>()
+    private val backing: MutableMap<K, QueryValue<V>> = ConcurrentHashMap<K, QueryValue<V>>()
 
     operator fun get(key: K): QueryValue<V> {
-        val ver = versionData.current
-        val current = backing.getOrPut(key) {
-            QueryValue(ver, ver, fn(key))
+        val version = versionData.current
+        val last = backing[key]
+
+        val value = when {
+            last == null -> QueryValue(version, version, fn(key, version))
+            last.checked < version -> update(key, last, version)
+            else -> return last
         }
 
-        if (current.checked < ver) {
-            val new = update(key, current, ver)
-            backing[key] = new
-            return new
-        }
-
-        return current
+        backing[key] = value
+        return value
     }
 }
