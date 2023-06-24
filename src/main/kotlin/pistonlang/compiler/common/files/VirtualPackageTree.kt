@@ -1,12 +1,15 @@
 package pistonlang.compiler.common.files
 
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentMapOf
 import pistonlang.compiler.common.items.FileReference
 import pistonlang.compiler.common.main.CompilerInstance
+import pistonlang.compiler.util.EmptyIterator
 import java.util.*
 
 @JvmInline
-value class VirtualPackageTree<Data> internal constructor(
-    private val node: VirtualPackageTreeNode<Data>,
+value class VirtualPackageTree<out Data> internal constructor(
+    internal val node: VirtualPackageTreeNode<Data>,
 ) : Iterable<Pair<FileReference, Data>> {
     fun traverse(fn: (FileReference, Data) -> Unit) = node.traverse(fn, "")
 
@@ -15,9 +18,12 @@ value class VirtualPackageTree<Data> internal constructor(
     override operator fun iterator(): Iterator<Pair<FileReference, Data>> = node.iterator()
 }
 
-data class VirtualPackageTreeNode<Data> internal constructor(
-    private val children: List<Pair<String, VirtualPackageTreeNode<Data>>>,
-    private val files: List<Pair<String, Data>>
+operator fun <Data> VirtualPackageTree<Data>.plus(other: VirtualPackageTree<Data>) =
+    VirtualPackageTree(this.node + other.node)
+
+internal data class VirtualPackageTreeNode<out Data> internal constructor(
+    internal val children: PersistentMap<String, VirtualPackageTreeNode<Data>>,
+    internal val files: PersistentMap<String, Data>,
 ) {
     internal fun traverse(fn: (FileReference, Data) -> Unit, pathString: String) {
         files.forEach { (name, code) -> fn(FileReference(pathString + name), code) }
@@ -25,59 +31,53 @@ data class VirtualPackageTreeNode<Data> internal constructor(
     }
 
     internal fun <Res> mapValues(fn: (Data) -> Res): VirtualPackageTreeNode<Res> = VirtualPackageTreeNode(
-        children.map { (name, node) -> name to node.mapValues(fn) },
-        files.map { (name, data) -> name to fn(data) }
+        children.asSequence().fold(persistentMapOf()) { map, (name, node) -> map.put(name, node.mapValues(fn)) },
+        files.asSequence().fold(persistentMapOf()) { map, (name, data) -> map.put(name, fn(data)) }
     )
 
     internal operator fun iterator(): Iterator<Pair<FileReference, Data>> =
         object : Iterator<Pair<FileReference, Data>> {
-            private val nodeStack = Stack<Pair<VirtualPackageTreeNode<Data>, Int>>()
-            private var currentNode = this@VirtualPackageTreeNode
+            private val nodeStack = Stack<Iterator<Map.Entry<String, VirtualPackageTreeNode<Data>>>>()
             private var prefix = ""
-            private var fileIndex = 0
-            private var childIndex = 0
+            private var fileIter = this@VirtualPackageTreeNode.files.iterator()
+            private var childIter = this@VirtualPackageTreeNode.children.iterator()
 
             init {
                 findNextNode()
             }
 
             tailrec fun findNextNode(): Unit = when {
-                fileIndex < currentNode.files.size -> Unit
+                fileIter.hasNext() -> Unit
 
-                childIndex < currentNode.children.size -> {
-                    nodeStack.push(currentNode to childIndex + 1)
-                    val child = currentNode.children[childIndex]
-                    prefix = "$prefix${child.first}/"
-                    currentNode = child.second
-                    fileIndex = 0
-                    childIndex = 0
+                childIter.hasNext() -> {
+                    nodeStack.push(childIter)
+                    val (key, child) = childIter.next()
+                    prefix = "$prefix${key}/"
+                    fileIter = child.files.iterator()
+                    childIter = child.children.iterator()
                     findNextNode()
                 }
 
-                nodeStack.isEmpty() -> {
-                    childIndex = -1
-                }
+                nodeStack.isEmpty() -> Unit
 
                 else -> {
                     val parent = nodeStack.pop()
-                    currentNode = parent.first
-                    fileIndex = currentNode.files.size
-                    childIndex = parent.second
+                    fileIter = EmptyIterator
+                    childIter = parent
                     if (prefix.isNotEmpty())
                         prefix = prefix.dropLast(1).dropLastWhile { it != '/' }
                     findNextNode()
                 }
             }
 
-            override fun hasNext(): Boolean = childIndex != -1
+            override fun hasNext(): Boolean = childIter.hasNext()
 
             override fun next(): Pair<FileReference, Data> {
-                if (childIndex == -1) error("Tried to access the next child of an iterator at the end of a Virtual Package Tree")
+                if (!hasNext()) error("Tried to access the next child of an iterator at the end of a Virtual Package Tree")
 
-                val pair = currentNode.files[fileIndex]
-                val res = FileReference("$prefix${pair.first}") to pair.second
+                val pair = fileIter.next()
+                val res = FileReference("$prefix${pair.key}") to pair.value
 
-                fileIndex += 1
                 findNextNode()
 
                 return res
@@ -85,18 +85,27 @@ data class VirtualPackageTreeNode<Data> internal constructor(
         }
 }
 
+private operator fun <Data> VirtualPackageTreeNode<Data>.plus(other: VirtualPackageTreeNode<Data>): VirtualPackageTreeNode<Data> {
+    val newFiles = files.putAll(other.files)
+    val newChildren = other.children.asSequence().fold(children) { newChildren, (key, child) ->
+        val newChild = newChildren[key].let { if (it == null) child else it + child }
+        newChildren.put(key, newChild)
+    }
+    return VirtualPackageTreeNode(newChildren, newFiles)
+}
+
 class VirtualPackageTreeBuilder<Data> {
-    private val children = mutableListOf<Pair<String, VirtualPackageTreeNode<Data>>>()
-    private val files = mutableListOf<Pair<String, Data>>()
+    private var children = persistentMapOf<String, VirtualPackageTreeNode<Data>>()
+    private var files = persistentMapOf<String, Data>()
 
     @PublishedApi
     internal fun addChild(name: String, node: VirtualPackageTreeNode<Data>) {
-        children.add(name to node)
+        children = children.put(name, node)
     }
 
     @PublishedApi
     internal fun addFile(name: String, data: Data) {
-        files.add(name to data)
+        files = files.put(name, data)
     }
 
     inline fun child(name: String, fn: VirtualPackageTreeBuilder<Data>.() -> Unit) {

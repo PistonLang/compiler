@@ -42,7 +42,6 @@ class PistonLanguageHandler(
         }
     }
 
-
     override val fileItems: Query<FileReference, Map<String, ItemList<PistonType>>> = run {
         val collectFn = { key: FileReference, _: QueryVersion ->
             val res = mutableMapOf<String, MutableItemList<PistonType>>()
@@ -224,5 +223,18 @@ class PistonLanguageHandler(
         val loc = child.parentRelativeLocation
         val ref = ItemNodeReference(type, this, loc, key)
         res.getOrPut(name) { MutableItemList() }.add(ref)
+    }
+
+    private fun nodeFromFileRef(reference: FileReference) = ast[reference].value.asRedRoot()
+
+    fun nodeFromItemRef(ref: ItemReference): RedNode<PistonType>? {
+        if (!ref.parent.isFile) TODO("This isn't handled yet")
+        val parent = ref.parent as FileReference
+        val parentNode = nodeFromFileRef(parent)
+        val nodeRef = fileItems[parent]
+            .value[ref.name]
+            ?.get(ref.type, ref.id)
+            ?: return null
+        return parentNode.findAtRelative(nodeRef.location)
     }
 }

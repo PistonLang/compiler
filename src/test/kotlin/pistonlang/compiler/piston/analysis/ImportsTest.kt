@@ -12,7 +12,7 @@ import pistonlang.compiler.piston.parser.PistonParsing
 import kotlin.test.assertEquals
 
 class ImportsTest {
-    private val testVirtualPackageTree: VirtualPackageTree<Pair<String, String>> = virtualTree {
+    private val tree: VirtualPackageTree<Pair<String, String>> = virtualTree {
         child("foo") {
             file("a.pi") {
                 """
@@ -49,8 +49,8 @@ class ImportsTest {
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)
 
-        instance.add(testVirtualPackageTree.mapValues { it.first })
-        assertAll(testVirtualPackageTree.map { (file, data) ->
+        instance.add(tree.mapValues { it.first })
+        assertAll(tree.map { (file, data) ->
             {
                 assertEquals(data.second, handler.fileImportData[file].value.toString())
             }

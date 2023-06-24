@@ -3,6 +3,7 @@ package pistonlang.compiler.common.parser.nodes
 import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.parser.AbsoluteNodeLoc
 import pistonlang.compiler.common.parser.NodeLocation
+import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.contains
 import pistonlang.compiler.util.isBefore
@@ -39,9 +40,13 @@ class RedNode<T : SyntaxType> internal constructor(
 
     val location get() = NodeLocation(span, type)
 
-    fun findAt(span: IntRange, type: T) = findAt(this, span, type)
+    fun findAtAbsolute(span: IntRange, type: T) = findAt(this, span, type)
 
-    fun findAt(pos: AbsoluteNodeLoc<T>) = findAt(pos.pos, pos.type)
+    fun findAtAbsolute(loc: AbsoluteNodeLoc<T>) = findAtAbsolute(loc.pos, loc.type)
+
+    fun findAtRelative(span: IntRange, type: T) = findAt(this, (span.first + pos)..span.last, type)
+
+    fun findAtRelative(loc: RelativeNodeLoc<T>) = findAtRelative(loc.pos, loc.type)
 
     fun firstDirectChild(type: T) = green.firstDirectChild(type)?.let(this::wrap)
 

@@ -1,6 +1,7 @@
 package pistonlang.compiler.common.parser.nodes
 
 import pistonlang.compiler.common.language.SyntaxType
+import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.EmptyIterator
@@ -125,3 +126,6 @@ val <Type : SyntaxType> GreenChild<Type>.parentRelativeLocation: RelativeNodeLoc
 
 val List<GreenChild<*>>.textLength: Int
     get() = if (isEmpty()) 0 else last().let { it.offset + it.value.length }
+
+fun <Type: SyntaxType> GreenNode<Type>.locFrom(startPos: Int) =
+    NodeLocation(startPos..(startPos + this.length), this.type)

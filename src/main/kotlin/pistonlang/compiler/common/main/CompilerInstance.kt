@@ -1,7 +1,9 @@
 package pistonlang.compiler.common.main
 
-import kotlinx.collections.immutable.persistentMapOf
-import pistonlang.compiler.common.files.*
+import pistonlang.compiler.common.files.ChangeType
+import pistonlang.compiler.common.files.FileChange
+import pistonlang.compiler.common.files.FileData
+import pistonlang.compiler.common.files.PackageTree
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.language.SyntaxType
@@ -50,7 +52,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     // TODO: Handle option changes
     val packageTree: Query<Unit, PackageTree> = run {
         val default = { _: Unit, version: QueryVersion ->
-            var tree = PackageTree(PackageReference(emptyList()), version, persistentMapOf(), emptyList())
+            var tree = PackageTree(PackageReference(emptyList()), version)
             while (changes.isNotEmpty()) {
                 tree = applyFileChange(tree, changes.poll())
             }
@@ -103,9 +105,8 @@ class CompilerInstance(val versionData: QueryVersionData) {
     }
 
     fun addFile(ref: FileReference, code: String) {
-        val newVersion = versionData.update()
         val type = if (this.code.contains(ref)) ChangeType.Update else ChangeType.Addition
-        this.code[ref] = FileData(true, code)
+        val newVersion = this.code.set(ref, FileData(true, code)).modified
         changes.offer(FileChange(ref, type, newVersion))
     }
 
@@ -114,8 +115,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
 
         val current = code[ref].value
         if (current.valid) {
-            val newVersion = versionData.update()
-            code[ref] = current.copy(valid = false)
+            val newVersion = code.set(ref, current.copy(valid = false)).modified
             changes.offer(FileChange(ref, ChangeType.Removal, newVersion))
         }
     }

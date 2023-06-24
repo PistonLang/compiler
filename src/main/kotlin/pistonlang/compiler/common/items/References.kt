@@ -1,8 +1,13 @@
 package pistonlang.compiler.common.items
 
-sealed interface ParentReference
+sealed interface ParentReference {
+    val isFile: Boolean get() = false
+}
 
-data class FileReference(val path: String) : ParentReference
+data class FileReference(val path: String) : ParentReference {
+    override val isFile: Boolean
+        get() = true
+}
 
 sealed interface UsableReference {
     val isNamespace: Boolean
@@ -21,8 +26,12 @@ value class PackageReference(val path: List<String>) : UsableReference {
         get() = true
 }
 
-data class ItemReference(val file: ParentReference, val name: String, val type: ItemType, val id: Int) : ParentReference,
-    UsableReference {
+data class ItemReference(
+    val parent: ParentReference,
+    val name: String,
+    val type: ItemType,
+    val id: Int,
+) : ParentReference, UsableReference {
     override val isNamespace: Boolean
         get() = type.type
 }

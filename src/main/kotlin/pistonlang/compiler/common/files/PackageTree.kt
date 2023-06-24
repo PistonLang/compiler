@@ -1,7 +1,9 @@
 package pistonlang.compiler.common.files
 
 import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
 import pistonlang.compiler.common.items.FileReference
 import pistonlang.compiler.common.items.PackageReference
 import pistonlang.compiler.common.queries.QueryVersion
@@ -13,7 +15,7 @@ data class PackageTree(
     val reference: PackageReference,
     val lastUpdated: QueryVersion,
     val children: PersistentMap<String, PackageTree> = persistentMapOf(),
-    val files: List<FileReference> = emptyList(),
+    val files: PersistentSet<FileReference> = persistentSetOf(),
     val validCount: Int = 0,
 ) {
     private fun isValid(): Boolean = validCount > 0 || files.isNotEmpty()
@@ -33,7 +35,7 @@ data class PackageTree(
     }
 
     private fun add(file: FileReference, version: QueryVersion): PackageTree =
-        this.copy(files = files + file, lastUpdated = version)
+        this.copy(files = files.add(file), lastUpdated = version)
 
     fun update(pack: PackageReference, file: FileReference, version: QueryVersion): PackageTree =
         update(pack.path, 0, file, version)
@@ -62,7 +64,7 @@ data class PackageTree(
     }
 
     private fun remove(file: FileReference, version: QueryVersion): PackageTree =
-        this.copy(files = files - file, lastUpdated = version)
+        this.copy(files = files.remove(file), lastUpdated = version)
 
     fun nodeFor(handle: PackageReference) = nodeFor(handle.path, 0, this)
 }
