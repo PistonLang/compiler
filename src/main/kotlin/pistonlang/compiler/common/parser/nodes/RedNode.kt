@@ -10,7 +10,7 @@ import pistonlang.compiler.util.isBefore
 
 class RedNode<T : SyntaxType> internal constructor(
     val parent: RedNode<T>?,
-    val green: GreenNode<T>,
+    internal val green: GreenNode<T>,
     val pos: Int
 ) {
     internal fun wrap(child: GreenChild<T>) = RedNode(this, child.value, pos + child.offset)

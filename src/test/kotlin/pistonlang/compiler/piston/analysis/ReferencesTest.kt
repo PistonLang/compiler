@@ -46,23 +46,23 @@ class ReferencesTest {
                 ItemNodeReference(ItemType.Function, handler, NodeLocation(0..32, PistonType.functionDef), reference),
             ),
             "bar" to itemListOf(
-                ItemNodeReference(ItemType.Getter, handler, NodeLocation(32..46, PistonType.functionDef), reference),
-                ItemNodeReference(ItemType.Setter, handler, NodeLocation(46..83, PistonType.functionDef), reference),
+                ItemNodeReference(ItemType.Getter, handler, NodeLocation(34..46, PistonType.functionDef), reference),
+                ItemNodeReference(ItemType.Setter, handler, NodeLocation(48..83, PistonType.functionDef), reference),
             ),
             "a" to itemListOf(
-                ItemNodeReference(ItemType.Val, handler, NodeLocation(83..95, PistonType.propertyDef), reference),
+                ItemNodeReference(ItemType.Val, handler, NodeLocation(85..95, PistonType.propertyDef), reference),
             ),
             "b" to itemListOf(
-                ItemNodeReference(ItemType.Var, handler, NodeLocation(95..107, PistonType.propertyDef), reference),
+                ItemNodeReference(ItemType.Var, handler, NodeLocation(97..107, PistonType.propertyDef), reference),
             ),
             "A" to itemListOf(
-                ItemNodeReference(ItemType.Trait, handler, NodeLocation(107..152, PistonType.traitDef), reference),
+                ItemNodeReference(ItemType.Trait, handler, NodeLocation(109..152, PistonType.traitDef), reference),
             ),
             "B" to itemListOf(
                 ItemNodeReference(
                     ItemType.MultiInstanceClass,
                     handler,
-                    NodeLocation(152..231, PistonType.classDef),
+                    NodeLocation(154..231, PistonType.classDef),
                     reference
                 ),
             ),
@@ -70,7 +70,7 @@ class ReferencesTest {
                 ItemNodeReference(
                     ItemType.SingletonClass,
                     handler,
-                    NodeLocation(231..281, PistonType.classDef),
+                    NodeLocation(233..281, PistonType.classDef),
                     reference
                 ),
             ),
@@ -84,7 +84,7 @@ class ReferencesTest {
         def useAll() = a(a + b) - c.d
         """.trimIndent() to mapOf(
             "useAll" to itemListOf(
-                ItemNodeReference(ItemType.Function, handler, NodeLocation(91..122, PistonType.functionDef), reference)
+                ItemNodeReference(ItemType.Function, handler, NodeLocation(93..122, PistonType.functionDef), reference)
             )
         )
     )

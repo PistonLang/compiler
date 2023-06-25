@@ -48,8 +48,8 @@ File@0
   │ │   └─TypePath@31
   │ │     └─PathSegment@31
   │ │       └─Identifier(T)@31
-  │ ├─RParen@32
-  │ └─Whitespace( )@33
+  │ └─RParen@32
+  ├─Whitespace( )@33
   └─ExpressionBody@34
     ├─Eq@34
     ├─Whitespace( )@35
@@ -66,8 +66,8 @@ File@0
       │ │ │ │ ├─PlusExpression@45
       │ │ │ │ │ ├─IdentifierExpression@45
       │ │ │ │ │ │ └─PathSegment@45
-      │ │ │ │ │ │   ├─Identifier(a)@45
-      │ │ │ │ │ │   └─Whitespace( )@46
+      │ │ │ │ │ │   └─Identifier(a)@45
+      │ │ │ │ │ ├─Whitespace( )@46
       │ │ │ │ │ ├─Plus@47
       │ │ │ │ │ ├─Whitespace( )@48
       │ │ │ │ │ └─IdentifierExpression@49
@@ -78,8 +78,8 @@ File@0
       │ │ │ └─PathSegment@52
       │ │ │   └─Identifier(toString)@52
       │ │ ├─LParen@60
-      │ │ ├─RParen@61
-      │ │ └─Whitespace( )@62
+      │ │ └─RParen@61
+      │ ├─Whitespace( )@62
       │ ├─Plus@63
       │ ├─Whitespace( )@64
       │ └─IdentifierExpression@65
@@ -138,17 +138,17 @@ File@0
 │ │ │         │   └─PathSegment@22
 │ │ │         │     └─Identifier(T)@22
 │ │ │         └─RBracket@23
-│ │ ├─RParen@24
-│ │ └─Whitespace( )@25
+│ │ └─RParen@24
+│ ├─Whitespace( )@25
 │ └─ExpressionBody@26
 │   ├─Eq@26
 │   ├─Whitespace( )@27
 │   └─IdentifierExpression@28
 │     └─PathSegment@28
 │       └─Identifier(Unit)@28
-├─FunctionDef@32
-│ ├─Newline@32
-│ ├─Newline@33
+├─Newline@32
+├─Newline@33
+├─FunctionDef@34
 │ ├─DefKw@34
 │ ├─Whitespace( )@37
 │ ├─Identifier(bar)@38
@@ -158,9 +158,9 @@ File@0
 │   ├─Whitespace( )@43
 │   └─LiteralExpression@44
 │     └─IntLiteral(10)@44
-├─FunctionDef@46
-│ ├─Newline@46
-│ ├─Newline@47
+├─Newline@46
+├─Newline@47
+├─FunctionDef@48
 │ ├─DefKw@48
 │ ├─Whitespace( )@51
 │ ├─Identifier(bar_=)@52
@@ -174,8 +174,8 @@ File@0
 │ │ │   └─TypePath@63
 │ │ │     └─PathSegment@63
 │ │ │       └─Identifier(Int)@63
-│ │ ├─RParen@66
-│ │ └─Whitespace( )@67
+│ │ └─RParen@66
+│ ├─Whitespace( )@67
 │ └─ExpressionBody@68
 │   ├─Eq@68
 │   ├─Whitespace( )@69
@@ -189,9 +189,9 @@ File@0
 │     │   └─Identifier(println)@74
 │     ├─LParen@81
 │     └─RParen@82
-├─PropertyDef@83
-│ ├─Newline@83
-│ ├─Newline@84
+├─Newline@83
+├─Newline@84
+├─PropertyDef@85
 │ ├─ValKw@85
 │ ├─Whitespace( )@88
 │ ├─Identifier(a)@89
@@ -201,9 +201,9 @@ File@0
 │   ├─Whitespace( )@92
 │   └─LiteralExpression@93
 │     └─IntLiteral(10)@93
-├─PropertyDef@95
-│ ├─Newline@95
-│ ├─Newline@96
+├─Newline@95
+├─Newline@96
+├─PropertyDef@97
 │ ├─VarKw@97
 │ ├─Whitespace( )@100
 │ ├─Identifier(b)@101
@@ -213,25 +213,25 @@ File@0
 │   ├─Whitespace( )@104
 │   └─LiteralExpression@105
 │     └─IntLiteral(15)@105
-├─TraitDef@107
-│ ├─Newline@107
-│ ├─Newline@108
+├─Newline@107
+├─Newline@108
+├─TraitDef@109
 │ ├─TraitKw@109
 │ ├─Whitespace( )@114
 │ ├─Identifier(A)@115
 │ ├─Whitespace( )@116
 │ └─StatementBlock@117
 │   ├─LBrace@117
-│   ├─FunctionDef@118
-│   │ ├─Newline@118
-│   │ ├─Whitespace(    )@119
+│   ├─Newline@118
+│   ├─Whitespace(    )@119
+│   ├─FunctionDef@123
 │   │ ├─DefKw@123
 │   │ ├─Whitespace( )@126
 │   │ ├─Identifier(print)@127
 │   │ ├─FunctionParams@132
 │   │ │ ├─LParen@132
-│   │ │ ├─RParen@133
-│   │ │ └─Whitespace( )@134
+│   │ │ └─RParen@133
+│   │ ├─Whitespace( )@134
 │   │ └─ExpressionBody@135
 │   │   ├─Eq@135
 │   │   ├─Whitespace( )@136
@@ -246,9 +246,9 @@ File@0
 │   │     └─RParen@149
 │   ├─Newline@150
 │   └─RBrace@151
-├─ClassDef@152
-│ ├─Newline@152
-│ ├─Newline@153
+├─Newline@152
+├─Newline@153
+├─ClassDef@154
 │ ├─ClassKw@154
 │ ├─Whitespace( )@159
 │ ├─Identifier(B)@160
@@ -262,21 +262,21 @@ File@0
 │ │ │   └─TypePath@167
 │ │ │     └─PathSegment@167
 │ │ │       └─Identifier(Int)@167
-│ │ ├─RParen@170
-│ │ └─Whitespace( )@171
+│ │ └─RParen@170
+│ ├─Whitespace( )@171
 │ ├─Supertypes@172
 │ │ ├─Subtype@172
 │ │ ├─Whitespace( )@174
 │ │ └─IntersectionType@175
 │ │   └─TypePath@175
 │ │     └─PathSegment@175
-│ │       ├─Identifier(A)@175
-│ │       └─Whitespace( )@176
+│ │       └─Identifier(A)@175
+│ ├─Whitespace( )@176
 │ └─StatementBlock@177
 │   ├─LBrace@177
-│   ├─PropertyDef@178
-│   │ ├─Newline@178
-│   │ ├─Whitespace(    )@179
+│   ├─Newline@178
+│   ├─Whitespace(    )@179
+│   ├─PropertyDef@183
 │   │ ├─ValKw@183
 │   │ ├─Whitespace( )@186
 │   │ ├─Identifier(num)@187
@@ -287,17 +287,17 @@ File@0
 │   │   └─IdentifierExpression@193
 │   │     └─PathSegment@193
 │   │       └─Identifier(num)@193
-│   ├─FunctionDef@196
-│   │ ├─Newline@196
-│   │ ├─Newline@197
-│   │ ├─Whitespace(    )@198
+│   ├─Newline@196
+│   ├─Newline@197
+│   ├─Whitespace(    )@198
+│   ├─FunctionDef@202
 │   │ ├─DefKw@202
 │   │ ├─Whitespace( )@205
 │   │ ├─Identifier(print)@206
 │   │ ├─FunctionParams@211
 │   │ │ ├─LParen@211
-│   │ │ ├─RParen@212
-│   │ │ └─Whitespace( )@213
+│   │ │ └─RParen@212
+│   │ ├─Whitespace( )@213
 │   │ └─ExpressionBody@214
 │   │   ├─Eq@214
 │   │   ├─Whitespace( )@215
@@ -313,9 +313,9 @@ File@0
 │   │     └─RParen@228
 │   ├─Newline@229
 │   └─RBrace@230
-└─ClassDef@231
-  ├─Newline@231
-  ├─Newline@232
+├─Newline@231
+├─Newline@232
+└─ClassDef@233
   ├─ClassKw@233
   ├─Whitespace( )@238
   ├─Identifier(C)@239
@@ -326,20 +326,20 @@ File@0
   │ └─IntersectionType@244
   │   └─TypePath@244
   │     └─PathSegment@244
-  │       ├─Identifier(A)@244
-  │       └─Whitespace( )@245
+  │       └─Identifier(A)@244
+  ├─Whitespace( )@245
   └─StatementBlock@246
     ├─LBrace@246
-    ├─FunctionDef@247
-    │ ├─Newline@247
-    │ ├─Whitespace(    )@248
+    ├─Newline@247
+    ├─Whitespace(    )@248
+    ├─FunctionDef@252
     │ ├─DefKw@252
     │ ├─Whitespace( )@255
     │ ├─Identifier(print)@256
     │ ├─FunctionParams@261
     │ │ ├─LParen@261
-    │ │ ├─RParen@262
-    │ │ └─Whitespace( )@263
+    │ │ └─RParen@262
+    │ ├─Whitespace( )@263
     │ └─ExpressionBody@264
     │   ├─Eq@264
     │   ├─Whitespace( )@265
@@ -369,18 +369,18 @@ File@0
 │ ├─Whitespace( )@6
 │ └─ImportGroup@7
 │   ├─LBrace@7
-│   ├─ImportSegment@8
-│   │ ├─Newline@8
-│   │ ├─Whitespace(    )@9
+│   ├─Newline@8
+│   ├─Whitespace(    )@9
+│   ├─ImportSegment@13
 │   │ └─ImportPathAccess@13
 │   │   ├─Identifier(foo)@13
 │   │   ├─Dot@16
-│   │   ├─Identifier(a)@17
-│   │   ├─Whitespace(               )@18
-│   │   └─Comment(// function)@33
-│   ├─ImportSegment@44
-│   │ ├─Newline@44
-│   │ ├─Whitespace(    )@45
+│   │   └─Identifier(a)@17
+│   ├─Whitespace(               )@18
+│   ├─Comment(// function)@33
+│   ├─Newline@44
+│   ├─Whitespace(    )@45
+│   ├─ImportSegment@49
 │   │ ├─Identifier(bar)@49
 │   │ ├─Colon@52
 │   │ ├─Whitespace( )@53
@@ -396,23 +396,23 @@ File@0
 │   │   ├─Comma@60
 │   │   ├─Whitespace( )@61
 │   │   ├─ImportSegment@62
-│   │   │ ├─Identifier(c)@62
-│   │   │ └─Whitespace( )@63
-│   │   ├─RBrace@64
-│   │   ├─Whitespace(    )@65
-│   │   └─Comment(// val, var, package)@69
+│   │   │ └─Identifier(c)@62
+│   │   ├─Whitespace( )@63
+│   │   └─RBrace@64
+│   ├─Whitespace(    )@65
+│   ├─Comment(// val, var, package)@69
 │   ├─Newline@89
 │   └─RBrace@90
-└─FunctionDef@91
-  ├─Newline@91
-  ├─Newline@92
+├─Newline@91
+├─Newline@92
+└─FunctionDef@93
   ├─DefKw@93
   ├─Whitespace( )@96
   ├─Identifier(useAll)@97
   ├─FunctionParams@103
   │ ├─LParen@103
-  │ ├─RParen@104
-  │ └─Whitespace( )@105
+  │ └─RParen@104
+  ├─Whitespace( )@105
   └─ExpressionBody@106
     ├─Eq@106
     ├─Whitespace( )@107
@@ -425,15 +425,15 @@ File@0
       │ ├─PlusExpression@110
       │ │ ├─IdentifierExpression@110
       │ │ │ └─PathSegment@110
-      │ │ │   ├─Identifier(a)@110
-      │ │ │   └─Whitespace( )@111
+      │ │ │   └─Identifier(a)@110
+      │ │ ├─Whitespace( )@111
       │ │ ├─Plus@112
       │ │ ├─Whitespace( )@113
       │ │ └─IdentifierExpression@114
       │ │   └─PathSegment@114
       │ │     └─Identifier(b)@114
-      │ ├─RParen@115
-      │ └─Whitespace( )@116
+      │ └─RParen@115
+      ├─Whitespace( )@116
       ├─Minus@117
       ├─Whitespace( )@118
       └─AccessExpression@119
