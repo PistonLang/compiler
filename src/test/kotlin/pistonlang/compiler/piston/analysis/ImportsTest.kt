@@ -14,24 +14,24 @@ import kotlin.test.assertEquals
 class ImportsTest {
     private val tree: VirtualPackageTree<Pair<String, String>> = virtualTree {
         child("foo") {
-            file("a.pi") {
+            data("a.pi") {
                 """
                     def a(num: Int32): Int32 = 2 * num
                 """.trimIndent() to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})"
             }
         }
         child("bar") {
-            file("items.pi") {
+            data("items.pi") {
                 """
                     val a: Int32 = 5
                     var b: Int32 = 10
                 """.trimIndent() to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})"
             }
             child("c") {
-                file("empty.pi") { "" to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})" }
+                data("empty.pi") { "" to "ImportData(tree=ReferenceTree(dataList=[], nodes=[]), nameMap={})" }
             }
         }
-        file("test.pi") {
+        data("test.pi") {
             """
                 import {
                     foo.a               // function

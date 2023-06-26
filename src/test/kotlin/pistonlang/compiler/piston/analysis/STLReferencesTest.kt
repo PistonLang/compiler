@@ -36,6 +36,7 @@ class STLReferencesTest {
         CharArray: NodeLocation(pos=798..889, type=classDef)
         BoolArray: NodeLocation(pos=705..796, type=classDef)
         arrayOfNulls: NodeLocation(pos=86..127, type=functionDef)
+        println: NodeLocation(pos=0..24, type=functionDef)
     """.trimIndent()
 
     @Test

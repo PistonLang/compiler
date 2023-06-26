@@ -2,7 +2,10 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
-import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.items.FileReference
+import pistonlang.compiler.common.items.ItemList
+import pistonlang.compiler.common.items.ItemType
+import pistonlang.compiler.common.items.itemListOf
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.queries.QueryVersionData
@@ -14,9 +17,7 @@ import kotlin.test.assertEquals
 class ReferencesTest {
     private val reference = FileReference("test.pi")
 
-    private fun codeExpectationMap(
-        handler: PistonLanguageHandler
-    ): List<Pair<String, Map<String, ItemList<PistonType>>>> = listOf(
+    private fun codeExpectationMap(): List<Pair<String, Map<String, ItemList<PistonType>>>> = listOf(
         """
         def foo[T](list: List[T]) = Unit
         
@@ -43,36 +44,26 @@ class ReferencesTest {
         }
         """.trimIndent() to mapOf(
             "foo" to itemListOf(
-                ItemNodeReference(ItemType.Function, handler, NodeLocation(0..32, PistonType.functionDef), reference),
+                ItemType.Function to NodeLocation(0..32, PistonType.functionDef)
             ),
             "bar" to itemListOf(
-                ItemNodeReference(ItemType.Getter, handler, NodeLocation(34..46, PistonType.functionDef), reference),
-                ItemNodeReference(ItemType.Setter, handler, NodeLocation(48..83, PistonType.functionDef), reference),
+                ItemType.Getter to NodeLocation(34..46, PistonType.functionDef),
+                ItemType.Setter to NodeLocation(48..83, PistonType.functionDef),
             ),
             "a" to itemListOf(
-                ItemNodeReference(ItemType.Val, handler, NodeLocation(85..95, PistonType.propertyDef), reference),
+                ItemType.Val to NodeLocation(85..95, PistonType.propertyDef),
             ),
             "b" to itemListOf(
-                ItemNodeReference(ItemType.Var, handler, NodeLocation(97..107, PistonType.propertyDef), reference),
+                ItemType.Var to NodeLocation(97..107, PistonType.propertyDef)
             ),
             "A" to itemListOf(
-                ItemNodeReference(ItemType.Trait, handler, NodeLocation(109..152, PistonType.traitDef), reference),
+                ItemType.Trait to NodeLocation(109..152, PistonType.traitDef)
             ),
             "B" to itemListOf(
-                ItemNodeReference(
-                    ItemType.MultiInstanceClass,
-                    handler,
-                    NodeLocation(154..231, PistonType.classDef),
-                    reference
-                ),
+                ItemType.MultiInstanceClass to NodeLocation(154..231, PistonType.classDef)
             ),
             "C" to itemListOf(
-                ItemNodeReference(
-                    ItemType.SingletonClass,
-                    handler,
-                    NodeLocation(233..281, PistonType.classDef),
-                    reference
-                ),
+                ItemType.SingletonClass to NodeLocation(233..281, PistonType.classDef)
             ),
         ),
         """
@@ -84,7 +75,7 @@ class ReferencesTest {
         def useAll() = a(a + b) - c.d
         """.trimIndent() to mapOf(
             "useAll" to itemListOf(
-                ItemNodeReference(ItemType.Function, handler, NodeLocation(93..122, PistonType.functionDef), reference)
+                ItemType.Function to NodeLocation(93..122, PistonType.functionDef)
             )
         )
     )
@@ -95,7 +86,7 @@ class ReferencesTest {
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)
 
-        assertAll(codeExpectationMap(handler).map { (code, expected) ->
+        assertAll(codeExpectationMap().map { (code, expected) ->
             {
                 instance.addFile(reference, code)
                 assertEquals(expected, handler.fileItems[reference].value)

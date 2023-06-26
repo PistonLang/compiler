@@ -90,16 +90,35 @@ class CompilerInstance(val versionData: QueryVersionData) {
                 val handler = fileHandler[file].value ?: return@forEach
                 handler.fileItems[file].value.forEach { (name, list) ->
                     ItemType.values().forEach { type ->
-                        list.iteratorFor(type).withIndex().forEach { (index, value) ->
-                            res.getOrPut(name) { mutableListOf() }.add(ItemReference(value.parent, name, type, index))
+                        list.iteratorFor(type).withIndex().forEach { (index, _) ->
+                            res.getOrPut(name) { mutableListOf() }.add(ItemReference(file, name, type, index))
                         }
                     }
                 }
             }
             res
         }
-        Query(versionData, collectFn) { handle, old, version ->
-            val new = collectFn(handle, version)
+        Query(versionData, collectFn) { key, old, version ->
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
+    val childItems: Query<ItemReference, Map<String, List<UsableReference>>> = run {
+        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
+            val res = mutableMapOf<String, MutableList<UsableReference>>()
+            val handler = fileHandler[key.findFile()].value ?: return@fn res
+            handler.childItems[key].value.forEach { (name, list) ->
+                ItemType.values().forEach { type ->
+                    list.iteratorFor(type).withIndex().forEach { (index, _) ->
+                        res.getOrPut(name) { mutableListOf() }.add(ItemReference(key, name, type, index))
+                    }
+                }
+            }
+            res
+        }
+        Query(versionData, collectFn) { key, old, version ->
+            val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
         }
     }

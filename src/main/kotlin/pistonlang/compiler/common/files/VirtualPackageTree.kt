@@ -70,7 +70,7 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
                 }
             }
 
-            override fun hasNext(): Boolean = childIter.hasNext()
+            override fun hasNext(): Boolean = fileIter.hasNext()
 
             override fun next(): Pair<FileReference, Data> {
                 if (!hasNext()) error("Tried to access the next child of an iterator at the end of a Virtual Package Tree")
@@ -112,7 +112,7 @@ class VirtualPackageTreeBuilder<Data> {
         addChild(name, VirtualPackageTreeBuilder<Data>().apply(fn).build())
     }
 
-    inline fun file(name: String, dataFn: () -> Data) {
+    inline fun data(name: String, dataFn: () -> Data) {
         addFile(name, dataFn())
     }
 

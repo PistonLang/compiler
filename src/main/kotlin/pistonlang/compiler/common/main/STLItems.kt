@@ -8,7 +8,7 @@ import pistonlang.compiler.common.items.ItemType
 
 val stlTree: VirtualPackageTree<String> = virtualTree {
     child("piston") {
-        file("numbers.pi") {
+        data("numbers.pi") {
             """
                 class Int8(value: Int8) {
                     def plus(other: Int8): Int8
@@ -91,14 +91,14 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
                 }
             """.trimIndent()
         }
-        file("chars.pi") {
+        data("chars.pi") {
             """
                 class Char(value: Char) {
                     def asInt32: Int32
                 }
             """.trimIndent()
         }
-        file("strings.pi") {
+        data("strings.pi") {
             """
                 class String(value: String) {
                     def length: Int32
@@ -106,14 +106,14 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
                 }
             """.trimIndent()
         }
-        file("bools.pi") {
+        data("bools.pi") {
             """
                 class Bool(value: Bool) {
                     def not: Bool
                 }
             """.trimIndent()
         }
-        file("special.pi") {
+        data("special.pi") {
             """
                 trait Any {
                     def toString(): String
@@ -124,7 +124,7 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
                 class Nothing(self: Nothing)
             """.trimIndent()
         }
-        file("tuples.pi") {
+        data("tuples.pi") {
             """
                 class Unit
                 
@@ -140,7 +140,7 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
                 }
             """.trimIndent()
         }
-        file("arrays.pi") {
+        data("arrays.pi") {
             """
                 class Array[T](value: Array[T]) {
                     def size: Int32
@@ -190,6 +190,13 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
                 }
             """.trimIndent()
         }
+        child("io") {
+            data("console.pi") {
+                """
+                    def println(str: String)
+                """.trimIndent()
+            }
+        }
     }
 }
 
@@ -201,6 +208,7 @@ val stlItems = run {
     val special = FileReference("piston/special.pi")
     val tuples = FileReference("piston/tuples.pi")
     val arrays = FileReference("piston/arrays.pi")
+    val console = FileReference("piston/io/console.pi")
 
     listOf(
         ItemReference(numbers, "Int8", ItemType.MultiInstanceClass, 0),
@@ -227,5 +235,6 @@ val stlItems = run {
         ItemReference(arrays, "CharArray", ItemType.MultiInstanceClass, 0),
         ItemReference(arrays, "BoolArray", ItemType.MultiInstanceClass, 0),
         ItemReference(arrays, "arrayOfNulls", ItemType.Function, 0),
+        ItemReference(console, "println", ItemType.Function, 0),
     ).asSequence().map { it.name to it }.toMap()
 }

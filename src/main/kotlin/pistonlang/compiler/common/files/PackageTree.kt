@@ -29,7 +29,7 @@ data class PackageTree(
         val containsChild = children.contains(key)
         val node =
             if (containsChild) children[key]!!
-            else PackageTree(PackageReference(reference.path + key), version)
+            else PackageTree(reference.subpackage(key), version)
         val new = node.add(path, index + 1, file, version)
         return this.copy(lastUpdated = version, children = children.put(key, new), validCount = validCount + if (containsChild) 0 else 1)
     }
