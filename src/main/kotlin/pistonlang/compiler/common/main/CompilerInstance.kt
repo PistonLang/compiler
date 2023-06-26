@@ -107,7 +107,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     val childItems: Query<ItemReference, Map<String, List<UsableReference>>> = run {
         val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
             val res = mutableMapOf<String, MutableList<UsableReference>>()
-            val handler = fileHandler[key.findFile()].value ?: return@fn res
+            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<UsableReference>>()
             handler.childItems[key].value.forEach { (name, list) ->
                 ItemType.values().forEach { type ->
                     list.iteratorFor(type).withIndex().forEach { (index, _) ->
@@ -116,6 +116,19 @@ class CompilerInstance(val versionData: QueryVersionData) {
                 }
             }
             res
+        }
+        Query(versionData, collectFn) { key, old, version ->
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
+    val typeParams: Query<ItemReference, Map<String, List<TypeParamReference>>> = run {
+        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
+            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<TypeParamReference>>()
+            handler.typeParams[key].value.withIndex().groupBy({ it.value.first }) {
+                TypeParamReference(key, it.index)
+            }
         }
         Query(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)

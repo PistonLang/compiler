@@ -17,7 +17,6 @@ enum class ItemType(
     Function(callable = true),
     Getter(value = true),
     Setter(mutable = true),
-    TypeParam(type = true),
 }
 
 @JvmInline

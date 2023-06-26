@@ -6,6 +6,7 @@ import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.common.parser.Lexer
 import pistonlang.compiler.common.parser.Parser
+import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.*
 import pistonlang.compiler.common.queries.Query
 import pistonlang.compiler.common.queries.QueryVersion
@@ -67,21 +68,30 @@ class PistonLanguageHandler(
 
             val node = (nodeFromItemRef(key) ?: return@fn emptyMap<String, ItemList<PistonType>>()).asRoot()
 
-            node.firstDirectChild(PistonType.typeParams)?.let { params ->
-                params.childSequence.filter { it.type == PistonType.identifier }.forEach { ident ->
-                    res.getOrPut(ident.content) { MutableItemList() }
-                        .add(ItemType.TypeParam, ident.location)
-                }
-            }
-
             node.lastDirectChild(PistonType.statementBlock)?.let { block ->
                 block.childSequence
                     .filter { child -> child.type in PistonSyntaxSets.defs }
                     .forEach { child -> defNodeToReference(child, res) }
             }
 
-
             res.mapValues { (_, list) -> list.toImmutable() }
+        }
+        Query(instance.versionData, collectFn) { key, old, version ->
+            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
+    override val typeParams: Query<ItemReference, List<Pair<String, RelativeNodeLoc<PistonType>>>> = run {
+        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
+            (nodeFromItemRef(key) ?: return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>())
+                .firstDirectChildOr(PistonType.typeParams) { return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>() }
+                .asRoot().childSequence
+                .filter { it.type == PistonType.identifier }
+                .map { it.content to it.location }
+                .toList()
         }
         Query(instance.versionData, collectFn) { key, old, version ->
             if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
@@ -300,7 +310,11 @@ class PistonLanguageHandler(
             findFile(ref.parent, stack)
         }
 
-    private tailrec fun findNode(node: RedNode<PistonType>, stack: Stack<ItemReference>, parentRef: ItemReference): RedNode<PistonType>? {
+    private tailrec fun findNode(
+        node: RedNode<PistonType>,
+        stack: Stack<ItemReference>,
+        parentRef: ItemReference
+    ): RedNode<PistonType>? {
         if (stack.empty())
             return node
 

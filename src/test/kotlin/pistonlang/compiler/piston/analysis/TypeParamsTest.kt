@@ -12,12 +12,12 @@ import pistonlang.compiler.piston.parser.PistonLexer
 import pistonlang.compiler.piston.parser.PistonParsing
 import kotlin.test.assertEquals
 
-class ChildItemsTest {
+class TypeParamsTest {
     private val tree = virtualTree {
         data("func.pi") {
             """
                 def func[A where A <: Int32](a: A, b: Int32): Int32 = a + b
-            """.trimIndent() to "{}"
+            """.trimIndent() to "[(A, NodeLocation(pos=1..2, type=identifier))]"
         }
 
         data("class.pi") {
@@ -27,7 +27,7 @@ class ChildItemsTest {
                     
                     def foo() = println(t.toString())
                 }
-            """.trimIndent() to "{t=ItemList(list=[[], [], [], [NodeLocation(pos=32..44, type=propertyDef)], [], [], [], []]), foo=ItemList(list=[[], [], [], [], [], [NodeLocation(pos=54..87, type=functionDef)], [], []])}"
+            """.trimIndent() to "[(T, NodeLocation(pos=1..2, type=identifier))]"
         }
         data("trait.pi") {
             """
@@ -36,12 +36,12 @@ class ChildItemsTest {
                     
                     def bar: Int32 = 10
                 }
-            """.trimIndent() to "{foo=ItemList(list=[[], [], [], [], [], [NodeLocation(pos=16..35, type=functionDef)], [], []]), bar=ItemList(list=[[], [], [], [], [], [], [NodeLocation(pos=35..54, type=functionDef)], []])}"
+            """.trimIndent() to "[]"
         }
     }
 
     @Test
-    fun testChildItems() {
+    fun testTypeParams() {
         val instance = CompilerInstance(QueryVersionData())
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)
@@ -53,8 +53,9 @@ class ChildItemsTest {
                 handler.fileItems[file].value.forEach { (name, list) ->
                     ItemType.values().forEach inner@ { type ->
                         if (!list.iteratorFor(type).hasNext()) return@inner
+
                         val ref = ItemReference(file, name, type, 0)
-                        assertEquals(expected, handler.childItems[ref].value.toString())
+                        assertEquals(expected, handler.typeParams[ref].value.toString())
                     }
                 }
             }

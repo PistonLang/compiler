@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 class ReferencesTest {
     private val reference = FileReference("test.pi")
 
-    private fun codeExpectationMap(): List<Pair<String, Map<String, ItemList<PistonType>>>> = listOf(
+    private val expectations: List<Pair<String, Map<String, ItemList<PistonType>>>> = listOf(
         """
         def foo[T](list: List[T]) = Unit
         
@@ -86,7 +86,7 @@ class ReferencesTest {
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)
 
-        assertAll(codeExpectationMap().map { (code, expected) ->
+        assertAll(expectations.map { (code, expected) ->
             {
                 instance.addFile(reference, code)
                 assertEquals(expected, handler.fileItems[reference].value)

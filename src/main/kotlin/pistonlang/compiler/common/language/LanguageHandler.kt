@@ -1,9 +1,7 @@
 package pistonlang.compiler.common.language
 
-import pistonlang.compiler.common.items.FileReference
-import pistonlang.compiler.common.items.ItemList
-import pistonlang.compiler.common.items.ItemReference
-import pistonlang.compiler.common.items.ParentReference
+import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.GreenNode
 import pistonlang.compiler.common.queries.Query
 
@@ -15,5 +13,6 @@ interface LanguageHandler<Type : SyntaxType> {
     val extensions: List<String>
     val ast: Query<FileReference, GreenNode<Type>>
     val fileItems: Query<FileReference, Map<String, ItemList<Type>>>
+    val typeParams: Query<ItemReference, List<Pair<String, RelativeNodeLoc<Type>>>>
     val childItems: Query<ItemReference, Map<String, ItemList<Type>>>
 }

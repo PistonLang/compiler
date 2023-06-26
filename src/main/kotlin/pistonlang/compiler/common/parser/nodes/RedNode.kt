@@ -8,12 +8,12 @@ import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.contains
 import pistonlang.compiler.util.isBefore
 
-class RedNode<T : SyntaxType> internal constructor(
-    val parent: RedNode<T>?,
-    internal val green: GreenNode<T>,
+class RedNode<Type : SyntaxType> internal constructor(
+    val parent: RedNode<Type>?,
+    internal val green: GreenNode<Type>,
     private val pos: Int
 ) {
-    internal fun wrap(child: GreenChild<T>) = RedNode(this, child.value, pos + child.offset)
+    internal fun wrap(child: GreenChild<Type>) = RedNode(this, child.value, pos + child.offset)
 
     operator fun get(pos: Int) = green[pos].let(this::wrap)
 
@@ -29,8 +29,8 @@ class RedNode<T : SyntaxType> internal constructor(
 
     val childCount get() = green.childCount
 
-    val childIterator: Iterator<RedNode<T>>
-        get() = object : Iterator<RedNode<T>> {
+    val childIterator: Iterator<RedNode<Type>>
+        get() = object : Iterator<RedNode<Type>> {
             val green = this@RedNode.green.childIterator
 
             override fun hasNext() = green.hasNext()
@@ -42,35 +42,25 @@ class RedNode<T : SyntaxType> internal constructor(
 
     val location get() = NodeLocation(span, type)
 
-    fun findAtAbsolute(span: IntRange, type: T) = findAt(this, span, type)
+    fun findAtAbsolute(span: IntRange, type: Type) = findAt(this, span, type)
 
-    fun findAtAbsolute(loc: AbsoluteNodeLoc<T>) = findAtAbsolute(loc.pos, loc.type)
+    fun findAtAbsolute(loc: AbsoluteNodeLoc<Type>) = findAtAbsolute(loc.pos, loc.type)
 
-    fun findAtRelative(span: IntRange, type: T) = findAt(this, (span.first + pos)..span.last, type)
+    fun findAtRelative(span: IntRange, type: Type) = findAt(this, (span.first + pos)..span.last, type)
 
-    fun findAtRelative(loc: RelativeNodeLoc<T>) = findAtRelative(loc.pos, loc.type)
+    fun findAtRelative(loc: RelativeNodeLoc<Type>) = findAtRelative(loc.pos, loc.type)
 
-    fun firstDirectChild(type: T) = green.firstDirectChild(type)?.let(this::wrap)
+    fun firstDirectChild(type: Type) = green.firstDirectChild(type)?.let(this::wrap)
 
-    inline fun <Type : SyntaxType> GreenNode<Type>.firstDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
+    inline fun firstDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
         firstDirectChild(type) ?: fn()
 
-    inline fun <Type> GreenNode<Type>.firstDirectChildOr(
-        set: SyntaxSet<Type>,
-        fn: () -> RedNode<Type>
-    ) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
+    fun lastDirectChild(type: Type) = green.lastDirectChild(type)?.let(this::wrap)
 
-    fun lastDirectChild(type: T) = green.lastDirectChild(type)?.let(this::wrap)
-
-    inline fun <Type : SyntaxType> GreenNode<Type>.lastDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
+    inline fun lastDirectChildOr(type: Type, fn: () -> RedNode<Type>) =
         lastDirectChild(type) ?: fn()
 
-    inline fun <Type> GreenNode<Type>.lastDirectChildOr(
-        set: SyntaxSet<Type>,
-        fn: () -> RedNode<Type>
-    ) where Type : SyntaxType, Type : Enum<Type> = firstDirectChild(set) ?: fn()
-
-    fun findParent(type: T) = findParent(this, type)
+    fun findParent(type: Type) = findParent(this, type)
 
     fun format(builder: StringBuilder, prefix: String) {
         builder
@@ -144,5 +134,15 @@ private tailrec fun <T> findParent(node: RedNode<T>, set: SyntaxSet<T>): RedNode
 
 fun <T> RedNode<T>.findParent(set: SyntaxSet<T>): RedNode<T>? where T : SyntaxType, T : Enum<T> =
     findParent(this, set)
+
+inline fun <Type> RedNode<Type>.firstDirectChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenNode<Type>
+) where Type : SyntaxType, Type : Enum<Type> = this.firstDirectChild(set) ?: fn()
+
+inline fun <Type> RedNode<Type>.lastDirectChildOr(
+    set: SyntaxSet<Type>,
+    fn: () -> GreenNode<Type>
+) where Type : SyntaxType, Type : Enum<Type> = this.lastDirectChild(set) ?: fn()
 
 fun <T : SyntaxType> GreenNode<T>.asRedRoot() = RedNode(null, this, 0)
