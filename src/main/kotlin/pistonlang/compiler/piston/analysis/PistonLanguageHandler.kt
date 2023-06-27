@@ -304,6 +304,20 @@ class PistonLanguageHandler(
         res.getOrPut(name) { MutableMemberList() }.add(type, loc)
     }
 
+    override val constructors: Query<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> = run {
+        val collectFn = fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
+            (nodeFromItemRef(key) ?: return@fn emptyList<RelativeNodeLoc<PistonType>>())
+                .firstDirectChildOr(PistonType.functionParams) { return@fn emptyList<RelativeNodeLoc<PistonType>>() }
+                .let { listOf(it.location) }
+        }
+        Query(instance.versionData, collectFn) { key, old, version ->
+            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
     private tailrec fun findFile(ref: ParentHandle, stack: Stack<MemberHandle>): FileHandle =
         if (ref.isFile) ref as FileHandle else {
             stack.push(ref as MemberHandle)

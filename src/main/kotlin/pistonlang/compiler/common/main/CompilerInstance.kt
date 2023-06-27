@@ -136,6 +136,17 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
+    val constructors: Query<MultiInstanceClassHandle, List<ConstructorHandle>> = run {
+        val collectFn = fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
+            val handler = fileHandler[key.findFile()].value ?: return@fn emptyList<ConstructorHandle>()
+            handler.constructors[key].value.indices.map { ConstructorHandle(key, it) }
+        }
+        Query(versionData, collectFn) { key, old, version ->
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
     fun addFile(ref: FileHandle, code: String) {
         val type = if (this.code.contains(ref)) ChangeType.Update else ChangeType.Addition
         val newVersion = this.code.set(ref, FileData(true, code)).modified

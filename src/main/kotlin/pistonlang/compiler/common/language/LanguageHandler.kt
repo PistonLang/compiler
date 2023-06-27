@@ -15,4 +15,5 @@ interface LanguageHandler<Type : SyntaxType> {
     val fileItems: Query<FileHandle, Map<String, MemberList<Type>>>
     val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<Type>>>>
     val childItems: Query<MemberHandle, Map<String, MemberList<Type>>>
+    val constructors: Query<MultiInstanceClassHandle, List<RelativeNodeLoc<Type>>>
 }
