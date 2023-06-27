@@ -2,10 +2,7 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
-import pistonlang.compiler.common.items.FileReference
-import pistonlang.compiler.common.items.ItemList
-import pistonlang.compiler.common.items.ItemType
-import pistonlang.compiler.common.items.itemListOf
+import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.queries.QueryVersionData
@@ -14,10 +11,10 @@ import pistonlang.compiler.piston.parser.PistonParsing
 import pistonlang.compiler.piston.parser.PistonType
 import kotlin.test.assertEquals
 
-class ReferencesTest {
-    private val reference = FileReference("test.pi")
+class HandlesTest {
+    private val reference = FileHandle("test.pi")
 
-    private val expectations: List<Pair<String, Map<String, ItemList<PistonType>>>> = listOf(
+    private val expectations: List<Pair<String, Map<String, MemberList<PistonType>>>> = listOf(
         """
         def foo[T](list: List[T]) = Unit
         
@@ -43,27 +40,27 @@ class ReferencesTest {
             def print() = 'C'.println()
         }
         """.trimIndent() to mapOf(
-            "foo" to itemListOf(
-                ItemType.Function to NodeLocation(0..32, PistonType.functionDef)
+            "foo" to memberListOf(
+                MemberType.Function to NodeLocation(0..32, PistonType.functionDef)
             ),
-            "bar" to itemListOf(
-                ItemType.Getter to NodeLocation(34..46, PistonType.functionDef),
-                ItemType.Setter to NodeLocation(48..83, PistonType.functionDef),
+            "bar" to memberListOf(
+                MemberType.Getter to NodeLocation(34..46, PistonType.functionDef),
+                MemberType.Setter to NodeLocation(48..83, PistonType.functionDef),
             ),
-            "a" to itemListOf(
-                ItemType.Val to NodeLocation(85..95, PistonType.propertyDef),
+            "a" to memberListOf(
+                MemberType.Val to NodeLocation(85..95, PistonType.propertyDef),
             ),
-            "b" to itemListOf(
-                ItemType.Var to NodeLocation(97..107, PistonType.propertyDef)
+            "b" to memberListOf(
+                MemberType.Var to NodeLocation(97..107, PistonType.propertyDef)
             ),
-            "A" to itemListOf(
-                ItemType.Trait to NodeLocation(109..152, PistonType.traitDef)
+            "A" to memberListOf(
+                MemberType.Trait to NodeLocation(109..152, PistonType.traitDef)
             ),
-            "B" to itemListOf(
-                ItemType.MultiInstanceClass to NodeLocation(154..231, PistonType.classDef)
+            "B" to memberListOf(
+                MemberType.MultiInstanceClass to NodeLocation(154..231, PistonType.classDef)
             ),
-            "C" to itemListOf(
-                ItemType.SingletonClass to NodeLocation(233..281, PistonType.classDef)
+            "C" to memberListOf(
+                MemberType.SingletonClass to NodeLocation(233..281, PistonType.classDef)
             ),
         ),
         """
@@ -74,14 +71,14 @@ class ReferencesTest {
         
         def useAll() = a(a + b) - c.d
         """.trimIndent() to mapOf(
-            "useAll" to itemListOf(
-                ItemType.Function to NodeLocation(93..122, PistonType.functionDef)
+            "useAll" to memberListOf(
+                MemberType.Function to NodeLocation(93..122, PistonType.functionDef)
             )
         )
     )
 
     @Test
-    fun testReferences() {
+    fun testHandles() {
         val instance = CompilerInstance(QueryVersionData())
         val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
         instance.addHandler(handler)

@@ -2,7 +2,7 @@ package pistonlang.compiler.common.files
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
-import pistonlang.compiler.common.items.FileReference
+import pistonlang.compiler.common.items.FileHandle
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.util.EmptyIterator
 import java.util.*
@@ -10,12 +10,12 @@ import java.util.*
 @JvmInline
 value class VirtualPackageTree<out Data> internal constructor(
     internal val node: VirtualPackageTreeNode<Data>,
-) : Iterable<Pair<FileReference, Data>> {
-    fun traverse(fn: (FileReference, Data) -> Unit) = node.traverse(fn, "")
+) : Iterable<Pair<FileHandle, Data>> {
+    fun traverse(fn: (FileHandle, Data) -> Unit) = node.traverse(fn, "")
 
     fun <Res> mapValues(fn: (Data) -> Res) = VirtualPackageTree(node.mapValues(fn))
 
-    override operator fun iterator(): Iterator<Pair<FileReference, Data>> = node.iterator()
+    override operator fun iterator(): Iterator<Pair<FileHandle, Data>> = node.iterator()
 }
 
 operator fun <Data> VirtualPackageTree<Data>.plus(other: VirtualPackageTree<Data>) =
@@ -25,8 +25,8 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
     internal val children: PersistentMap<String, VirtualPackageTreeNode<Data>>,
     internal val files: PersistentMap<String, Data>,
 ) {
-    internal fun traverse(fn: (FileReference, Data) -> Unit, pathString: String) {
-        files.forEach { (name, code) -> fn(FileReference(pathString + name), code) }
+    internal fun traverse(fn: (FileHandle, Data) -> Unit, pathString: String) {
+        files.forEach { (name, code) -> fn(FileHandle(pathString + name), code) }
         children.forEach { (name, child) -> child.traverse(fn, "$pathString$name/") }
     }
 
@@ -35,8 +35,8 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
         files.asSequence().fold(persistentMapOf()) { map, (name, data) -> map.put(name, fn(data)) }
     )
 
-    internal operator fun iterator(): Iterator<Pair<FileReference, Data>> =
-        object : Iterator<Pair<FileReference, Data>> {
+    internal operator fun iterator(): Iterator<Pair<FileHandle, Data>> =
+        object : Iterator<Pair<FileHandle, Data>> {
             private val nodeStack = Stack<Iterator<Map.Entry<String, VirtualPackageTreeNode<Data>>>>()
             private var prefix = ""
             private var fileIter = this@VirtualPackageTreeNode.files.iterator()
@@ -72,11 +72,11 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
 
             override fun hasNext(): Boolean = fileIter.hasNext()
 
-            override fun next(): Pair<FileReference, Data> {
+            override fun next(): Pair<FileHandle, Data> {
                 if (!hasNext()) error("Tried to access the next child of an iterator at the end of a Virtual Package Tree")
 
                 val pair = fileIter.next()
-                val res = FileReference("$prefix${pair.key}") to pair.value
+                val res = FileHandle("$prefix${pair.key}") to pair.value
 
                 findNextNode()
 

@@ -11,8 +11,8 @@ import pistonlang.compiler.common.queries.Query
  */
 interface LanguageHandler<Type : SyntaxType> {
     val extensions: List<String>
-    val ast: Query<FileReference, GreenNode<Type>>
-    val fileItems: Query<FileReference, Map<String, ItemList<Type>>>
-    val typeParams: Query<ItemReference, List<Pair<String, RelativeNodeLoc<Type>>>>
-    val childItems: Query<ItemReference, Map<String, ItemList<Type>>>
+    val ast: Query<FileHandle, GreenNode<Type>>
+    val fileItems: Query<FileHandle, Map<String, MemberList<Type>>>
+    val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<Type>>>>
+    val childItems: Query<MemberHandle, Map<String, MemberList<Type>>>
 }

@@ -2,9 +2,7 @@ package pistonlang.compiler.common.main
 
 import pistonlang.compiler.common.files.VirtualPackageTree
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.FileReference
-import pistonlang.compiler.common.items.ItemReference
-import pistonlang.compiler.common.items.ItemType
+import pistonlang.compiler.common.items.*
 
 val stlTree: VirtualPackageTree<String> = virtualTree {
     child("piston") {
@@ -201,40 +199,40 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
 }
 
 val stlItems = run {
-    val numbers = FileReference("piston/numbers.pi")
-    val chars = FileReference("piston/chars.pi")
-    val strings = FileReference("piston/strings.pi")
-    val bools = FileReference("piston/bools.pi")
-    val special = FileReference("piston/special.pi")
-    val tuples = FileReference("piston/tuples.pi")
-    val arrays = FileReference("piston/arrays.pi")
-    val console = FileReference("piston/io/console.pi")
+    val numbers = FileHandle("piston/numbers.pi")
+    val chars = FileHandle("piston/chars.pi")
+    val strings = FileHandle("piston/strings.pi")
+    val bools = FileHandle("piston/bools.pi")
+    val special = FileHandle("piston/special.pi")
+    val tuples = FileHandle("piston/tuples.pi")
+    val arrays = FileHandle("piston/arrays.pi")
+    val console = FileHandle("piston/io/console.pi")
 
     listOf(
-        ItemReference(numbers, "Int8", ItemType.MultiInstanceClass, 0),
-        ItemReference(numbers, "Int16", ItemType.MultiInstanceClass, 0),
-        ItemReference(numbers, "Int32", ItemType.MultiInstanceClass, 0),
-        ItemReference(numbers, "Int64", ItemType.MultiInstanceClass, 0),
-        ItemReference(numbers, "Float32", ItemType.MultiInstanceClass, 0),
-        ItemReference(numbers, "Float64", ItemType.MultiInstanceClass, 0),
-        ItemReference(chars, "Char", ItemType.MultiInstanceClass, 0),
-        ItemReference(strings, "String", ItemType.MultiInstanceClass, 0),
-        ItemReference(bools, "Bool", ItemType.MultiInstanceClass, 0),
-        ItemReference(special, "Any", ItemType.Trait, 0),
-        ItemReference(special, "Nothing", ItemType.MultiInstanceClass, 0),
-        ItemReference(tuples, "Unit", ItemType.SingletonClass, 0),
-        ItemReference(tuples, "Pair", ItemType.MultiInstanceClass, 0),
-        ItemReference(tuples, "Triple", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Int8Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Int16Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Int32Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Int64Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Float32Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "Float64Array", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "CharArray", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "BoolArray", ItemType.MultiInstanceClass, 0),
-        ItemReference(arrays, "arrayOfNulls", ItemType.Function, 0),
-        ItemReference(console, "println", ItemType.Function, 0),
+        MultiInstanceClassHandle(numbers, "Int8", 0),
+        MultiInstanceClassHandle(numbers, "Int16", 0),
+        MultiInstanceClassHandle(numbers, "Int32", 0),
+        MultiInstanceClassHandle(numbers, "Int64", 0),
+        MultiInstanceClassHandle(numbers, "Float32", 0),
+        MultiInstanceClassHandle(numbers, "Float64", 0),
+        MultiInstanceClassHandle(chars, "Char", 0),
+        MultiInstanceClassHandle(strings, "String", 0),
+        MultiInstanceClassHandle(bools, "Bool", 0),
+        TraitHandle(special, "Any", 0),
+        MultiInstanceClassHandle(special, "Nothing", 0),
+        SingletonClassHandle(tuples, "Unit", 0),
+        MultiInstanceClassHandle(tuples, "Pair", 0),
+        MultiInstanceClassHandle(tuples, "Triple", 0),
+        MultiInstanceClassHandle(arrays, "Array", 0),
+        MultiInstanceClassHandle(arrays, "Int8Array", 0),
+        MultiInstanceClassHandle(arrays, "Int16Array", 0),
+        MultiInstanceClassHandle(arrays, "Int32Array", 0),
+        MultiInstanceClassHandle(arrays, "Int64Array", 0),
+        MultiInstanceClassHandle(arrays, "Float32Array", 0),
+        MultiInstanceClassHandle(arrays, "Float64Array", 0),
+        MultiInstanceClassHandle(arrays, "CharArray", 0),
+        MultiInstanceClassHandle(arrays, "BoolArray", 0),
+        FunctionHandle(arrays, "arrayOfNulls",  0),
+        FunctionHandle(console, "println",  0),
     ).asSequence().map { it.name to it }.toMap()
 }

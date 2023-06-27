@@ -4,25 +4,25 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
-import pistonlang.compiler.common.items.FileReference
-import pistonlang.compiler.common.items.PackageReference
+import pistonlang.compiler.common.items.FileHandle
+import pistonlang.compiler.common.items.PackageHandle
 import pistonlang.compiler.common.queries.QueryVersion
 
 /**
  * A persistent tree representing the package/file hierarchy of a project
  */
 data class PackageTree(
-    val reference: PackageReference,
+    val reference: PackageHandle,
     val lastUpdated: QueryVersion,
     val children: PersistentMap<String, PackageTree> = persistentMapOf(),
-    val files: PersistentSet<FileReference> = persistentSetOf(),
+    val files: PersistentSet<FileHandle> = persistentSetOf(),
     val validCount: Int = 0,
 ) {
     private fun isValid(): Boolean = validCount > 0 || files.isNotEmpty()
-    fun add(pack: PackageReference, file: FileReference, version: QueryVersion): PackageTree =
+    fun add(pack: PackageHandle, file: FileHandle, version: QueryVersion): PackageTree =
         add(pack.path, 0, file, version)
 
-    private fun add(path: List<String>, index: Int, file: FileReference, version: QueryVersion): PackageTree {
+    private fun add(path: List<String>, index: Int, file: FileHandle, version: QueryVersion): PackageTree {
         if (index == path.size) return add(file, version)
 
         val key = path[index]
@@ -34,12 +34,12 @@ data class PackageTree(
         return this.copy(lastUpdated = version, children = children.put(key, new), validCount = validCount + if (containsChild) 0 else 1)
     }
 
-    private fun add(file: FileReference, version: QueryVersion): PackageTree =
+    private fun add(file: FileHandle, version: QueryVersion): PackageTree =
         this.copy(files = files.add(file), lastUpdated = version)
 
-    fun update(pack: PackageReference, file: FileReference, version: QueryVersion): PackageTree =
+    fun update(pack: PackageHandle, file: FileHandle, version: QueryVersion): PackageTree =
         update(pack.path, 0, file, version)
-    private fun update(path: List<String>, index: Int, file: FileReference, version: QueryVersion): PackageTree {
+    private fun update(path: List<String>, index: Int, file: FileHandle, version: QueryVersion): PackageTree {
         if (index == path.size) return this.copy(lastUpdated = version)
 
         val key = path[index]
@@ -47,10 +47,10 @@ data class PackageTree(
         return this.copy(lastUpdated = version, children = children.put(key, new))
     }
 
-    fun remove(pack: PackageReference, file: FileReference, version: QueryVersion): PackageTree =
+    fun remove(pack: PackageHandle, file: FileHandle, version: QueryVersion): PackageTree =
         remove(pack.path, 0, file, version)
 
-    private fun remove(path: List<String>, index: Int, file: FileReference, version: QueryVersion): PackageTree {
+    private fun remove(path: List<String>, index: Int, file: FileHandle, version: QueryVersion): PackageTree {
         if (index == path.size) return remove(file, version)
 
         val key = path[index]
@@ -63,10 +63,10 @@ data class PackageTree(
         )
     }
 
-    private fun remove(file: FileReference, version: QueryVersion): PackageTree =
+    private fun remove(file: FileHandle, version: QueryVersion): PackageTree =
         this.copy(files = files.remove(file), lastUpdated = version)
 
-    fun nodeFor(handle: PackageReference) = nodeFor(handle.path, 0, this)
+    fun nodeFor(handle: PackageHandle) = nodeFor(handle.path, 0, this)
 }
 
 private tailrec fun nodeFor(path: List<String>, index: Int, tree: PackageTree): PackageTree? {

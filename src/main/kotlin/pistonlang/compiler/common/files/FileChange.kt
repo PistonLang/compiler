@@ -1,6 +1,6 @@
 package pistonlang.compiler.common.files
 
-import pistonlang.compiler.common.items.FileReference
+import pistonlang.compiler.common.items.FileHandle
 import pistonlang.compiler.common.queries.QueryVersion
 
 enum class ChangeType {
@@ -9,4 +9,4 @@ enum class ChangeType {
     Removal,
 }
 
-data class FileChange(val file: FileReference, val type: ChangeType, val version: QueryVersion)
+data class FileChange(val file: FileHandle, val type: ChangeType, val version: QueryVersion)

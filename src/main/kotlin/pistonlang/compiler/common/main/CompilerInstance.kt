@@ -11,7 +11,7 @@ import pistonlang.compiler.common.queries.*
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
-typealias CodeQuery = InputQuery<FileReference, FileData>
+typealias CodeQuery = InputQuery<FileHandle, FileData>
 typealias OptionsQuery = InputQuery<Unit, CompilerOptions>
 
 class CompilerInstance(val versionData: QueryVersionData) {
@@ -26,8 +26,8 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    private val fileHandler: Query<FileReference, LanguageHandler<*>?> = run {
-        val handleFun = { key: FileReference, _: QueryVersion ->
+    private val fileHandler: Query<FileHandle, LanguageHandler<*>?> = run {
+        val handleFun = { key: FileHandle, _: QueryVersion ->
             val ext = key.path.substringAfterLast('.')
             handlers[ext]
         }
@@ -36,11 +36,11 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    private val filePackage: Query<FileReference, PackageReference> = run {
-        val packFun = { key: FileReference, _: QueryVersion ->
+    private val filePackage: Query<FileHandle, PackageHandle> = run {
+        val packFun = { key: FileHandle, _: QueryVersion ->
             val ops = options[Unit]
             val path = key.path.removePrefix(ops.value.startPath).split('/').dropLast(1)
-            PackageReference(path)
+            PackageHandle(path)
         }
         Query(versionData, packFun) { key, old, version ->
             val ops = options[Unit]
@@ -52,7 +52,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     // TODO: Handle option changes
     val packageTree: Query<Unit, PackageTree> = run {
         val default = { _: Unit, version: QueryVersion ->
-            var tree = PackageTree(PackageReference(emptyList()), version)
+            var tree = PackageTree(PackageHandle(emptyList()), version)
             while (changes.isNotEmpty()) {
                 tree = applyFileChange(tree, changes.poll())
             }
@@ -79,19 +79,19 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    val packageItems: Query<PackageReference, Map<String, List<UsableReference>>> = run {
-        val collectFn = fn@{ key: PackageReference, _: QueryVersion ->
-            val node = packageTree[Unit].value.nodeFor(key) ?: return@fn emptyMap<String, List<UsableReference>>()
-            val res = mutableMapOf<String, MutableList<UsableReference>>()
+    val packageItems: Query<PackageHandle, Map<String, List<ItemHandle>>> = run {
+        val collectFn = fn@{ key: PackageHandle, _: QueryVersion ->
+            val node = packageTree[Unit].value.nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
+            val res = mutableMapOf<String, MutableList<ItemHandle>>()
             node.children.forEach { (name, _) ->
-                res.getOrPut(name) { mutableListOf() }.add(PackageReference(key.path + name))
+                res.getOrPut(name) { mutableListOf() }.add(PackageHandle(key.path + name))
             }
             node.files.forEach { file ->
                 val handler = fileHandler[file].value ?: return@forEach
                 handler.fileItems[file].value.forEach { (name, list) ->
-                    ItemType.values().forEach { type ->
+                    MemberType.values().forEach { type ->
                         list.iteratorFor(type).withIndex().forEach { (index, _) ->
-                            res.getOrPut(name) { mutableListOf() }.add(ItemReference(file, name, type, index))
+                            res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(file, name, index))
                         }
                     }
                 }
@@ -104,14 +104,14 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    val childItems: Query<ItemReference, Map<String, List<UsableReference>>> = run {
-        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
-            val res = mutableMapOf<String, MutableList<UsableReference>>()
-            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<UsableReference>>()
+    val childItems: Query<MemberHandle, Map<String, List<ItemHandle>>> = run {
+        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+            val res = mutableMapOf<String, MutableList<ItemHandle>>()
+            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<ItemHandle>>()
             handler.childItems[key].value.forEach { (name, list) ->
-                ItemType.values().forEach { type ->
+                MemberType.values().forEach { type ->
                     list.iteratorFor(type).withIndex().forEach { (index, _) ->
-                        res.getOrPut(name) { mutableListOf() }.add(ItemReference(key, name, type, index))
+                        res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(key, name, index))
                     }
                 }
             }
@@ -123,11 +123,11 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    val typeParams: Query<ItemReference, Map<String, List<TypeParamReference>>> = run {
-        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
-            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<TypeParamReference>>()
+    val typeParams: Query<MemberHandle, Map<String, List<TypeParamHandle>>> = run {
+        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<TypeParamHandle>>()
             handler.typeParams[key].value.withIndex().groupBy({ it.value.first }) {
-                TypeParamReference(key, it.index)
+                TypeParamHandle(key, it.index)
             }
         }
         Query(versionData, collectFn) { key, old, version ->
@@ -136,13 +136,13 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    fun addFile(ref: FileReference, code: String) {
+    fun addFile(ref: FileHandle, code: String) {
         val type = if (this.code.contains(ref)) ChangeType.Update else ChangeType.Addition
         val newVersion = this.code.set(ref, FileData(true, code)).modified
         changes.offer(FileChange(ref, type, newVersion))
     }
 
-    fun removeFile(ref: FileReference) {
+    fun removeFile(ref: FileHandle) {
         if (!code.contains(ref)) return
 
         val current = code[ref].value

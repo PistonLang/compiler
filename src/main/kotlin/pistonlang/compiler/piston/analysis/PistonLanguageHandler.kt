@@ -29,8 +29,8 @@ class PistonLanguageHandler(
 ) : LanguageHandler<PistonType> {
     override val extensions: List<String> = listOf("pi")
 
-    override val ast: Query<FileReference, GreenNode<PistonType>> = run {
-        val parseFn = { key: FileReference, _: QueryVersion ->
+    override val ast: Query<FileHandle, GreenNode<PistonType>> = run {
+        val parseFn = { key: FileHandle, _: QueryVersion ->
             val data = instance.code[key].value
             if (!data.valid) emptyNode else {
                 val parser = Parser(lexer(data.code), PistonType.file)
@@ -44,9 +44,9 @@ class PistonLanguageHandler(
         }
     }
 
-    override val fileItems: Query<FileReference, Map<String, ItemList<PistonType>>> = run {
-        val collectFn = { key: FileReference, _: QueryVersion ->
-            val res = mutableMapOf<String, MutableItemList<PistonType>>()
+    override val fileItems: Query<FileHandle, Map<String, MemberList<PistonType>>> = run {
+        val collectFn = { key: FileHandle, _: QueryVersion ->
+            val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
             ast[key].value.childSequence
                 .filter { child -> child.type in PistonSyntaxSets.defs }
@@ -62,11 +62,11 @@ class PistonLanguageHandler(
         }
     }
 
-    override val childItems: Query<ItemReference, Map<String, ItemList<PistonType>>> = run {
-        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
-            val res = mutableMapOf<String, MutableItemList<PistonType>>()
+    override val childItems: Query<MemberHandle, Map<String, MemberList<PistonType>>> = run {
+        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+            val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
-            val node = (nodeFromItemRef(key) ?: return@fn emptyMap<String, ItemList<PistonType>>()).asRoot()
+            val node = (nodeFromItemRef(key) ?: return@fn emptyMap<String, MemberList<PistonType>>()).asRoot()
 
             node.lastDirectChild(PistonType.statementBlock)?.let { block ->
                 block.childSequence
@@ -84,8 +84,8 @@ class PistonLanguageHandler(
         }
     }
 
-    override val typeParams: Query<ItemReference, List<Pair<String, RelativeNodeLoc<PistonType>>>> = run {
-        val collectFn = fn@{ key: ItemReference, _: QueryVersion ->
+    override val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> = run {
+        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
             (nodeFromItemRef(key) ?: return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>())
                 .firstDirectChildOr(PistonType.typeParams) { return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>() }
                 .asRoot().childSequence
@@ -101,8 +101,8 @@ class PistonLanguageHandler(
         }
     }
 
-    val fileImportData: Query<FileReference, ImportData> = run {
-        val collectFn = fn@{ key: FileReference, _: QueryVersion ->
+    val fileImportData: Query<FileHandle, ImportData> = run {
+        val collectFn = fn@{ key: FileHandle, _: QueryVersion ->
             val fileAst = ast[key].value
 
             val importNode = fileAst
@@ -111,11 +111,11 @@ class PistonLanguageHandler(
                 .asRedRoot()
 
             val tree = instance.packageTree[Unit].value
-            val data = mutableListOf<ReferenceData<PistonType>>()
+            val data = mutableListOf<HandleData<PistonType>>()
             val nameMap = hashMapOf<String, MutableList<Int>>()
             val children = handleImportGroup(tree, importNode, data, nameMap)
 
-            ImportData(ReferenceTree(data, children), nameMap)
+            ImportData(HandleTree(data, children), nameMap)
         }
         Query(instance.versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
@@ -126,9 +126,9 @@ class PistonLanguageHandler(
     private fun handleImportGroup(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<ReferenceData<PistonType>>,
+        items: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
-    ): List<ReferenceTreeNode<PistonType>> = node.childSequence
+    ): List<HandleTreeNode<PistonType>> = node.childSequence
         .filter { it.type == PistonType.importSegment }
         .map { segment -> handleImportSegment(pack, segment, items, nameMap) }
         .toList()
@@ -136,9 +136,9 @@ class PistonLanguageHandler(
     private fun handleImportSegment(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<ReferenceData<PistonType>>,
+        items: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
-    ): ReferenceTreeNode<PistonType> {
+    ): HandleTreeNode<PistonType> {
         val group = node.lastDirectChild(PistonType.importGroup)
         val path = node.firstDirectChild(PistonSyntaxSets.importPath)!!
 
@@ -146,19 +146,19 @@ class PistonLanguageHandler(
             return handleDirectImportPath(pack, path, items, nameMap)
         }
 
-        val children = mutableListOf<ReferenceTreeNode<PistonType>>()
+        val children = mutableListOf<HandleTreeNode<PistonType>>()
         val newPack = handleImportPath(pack, path, items, children)
         children.addAll(handleImportGroup(newPack, group, items, nameMap))
-        return ReferenceTreeNode(node.location, invalidIndex, children)
+        return HandleTreeNode(node.location, invalidIndex, children)
     }
 
     private fun handleImportPath(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<ReferenceData<PistonType>>,
-        resList: MutableList<ReferenceTreeNode<PistonType>>
+        items: MutableList<HandleData<PistonType>>,
+        resList: MutableList<HandleTreeNode<PistonType>>
     ): PackageTree? {
-        val childList = mutableListOf<ReferenceTreeNode<PistonType>>()
+        val childList = mutableListOf<HandleTreeNode<PistonType>>()
         val identNode: RedNode<PistonType>
         val currPackage: PackageTree? = if (node.type == PistonType.identifier) {
             identNode = node
@@ -168,7 +168,7 @@ class PistonLanguageHandler(
             val left = iter.findFirst { it.type in PistonSyntaxSets.importPath }!!
             val newPackage = handleImportPath(pack, left, items, childList)
             identNode = iter.findFirst { it.type == PistonType.identifier } ?: run {
-                resList.add(ReferenceTreeNode(node.location, invalidIndex, childList))
+                resList.add(HandleTreeNode(node.location, invalidIndex, childList))
                 return null
             }
             newPackage
@@ -178,11 +178,11 @@ class PistonLanguageHandler(
 
         val newName = identNode.content
         val subpackage = currPackage?.let { it.children[newName] } ?: run {
-            items.add(ReferenceData(identNode.location, nullReferenceList))
-            resList.add(ReferenceTreeNode(node.location, index, childList))
+            items.add(HandleData(identNode.location, nullReferenceList))
+            resList.add(HandleTreeNode(node.location, index, childList))
             return null
         }
-        resList.add(ReferenceTreeNode(node.location, index, childList))
+        resList.add(HandleTreeNode(node.location, index, childList))
 
         return subpackage
     }
@@ -190,10 +190,10 @@ class PistonLanguageHandler(
     private fun handleDirectImportPath(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<ReferenceData<PistonType>>,
+        items: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
-    ): ReferenceTreeNode<PistonType> {
-        val childList = mutableListOf<ReferenceTreeNode<PistonType>>()
+    ): HandleTreeNode<PistonType> {
+        val childList = mutableListOf<HandleTreeNode<PistonType>>()
         val identNode: RedNode<PistonType>
         val currPackage: PackageTree? = if (node.type == PistonType.identifier) {
             identNode = node
@@ -203,132 +203,132 @@ class PistonLanguageHandler(
             val left = iter.findFirst { it.type in PistonSyntaxSets.importPath }!!
             val newPackage = handleImportPath(pack, left, items, childList)
             identNode = iter.findFirst { it.type == PistonType.identifier }
-                ?: return ReferenceTreeNode(node.location, invalidIndex, childList)
+                ?: return HandleTreeNode(node.location, invalidIndex, childList)
             newPackage
         }
 
         val index = items.size
 
         if (currPackage == null) {
-            items.add(ReferenceData(identNode.location, nullReferenceList))
-            return ReferenceTreeNode(node.location, index, childList)
+            items.add(HandleData(identNode.location, nullReferenceList))
+            return HandleTreeNode(node.location, index, childList)
         }
 
         val newName = identNode.content
         val handleList = instance.packageItems[currPackage.reference].value[newName]
         val handles = handleList?.assertNonEmpty() ?: nullReferenceList
-        items.add(ReferenceData(identNode.location, handles))
+        items.add(HandleData(identNode.location, handles))
         nameMap.getOrPut(newName) { mutableListOf() }.add(index)
 
-        return ReferenceTreeNode(node.location, index, childList)
+        return HandleTreeNode(node.location, index, childList)
     }
 
     private fun defNodeToReference(
         child: GreenChild<PistonType>,
-        res: MutableMap<String, MutableItemList<PistonType>>
+        res: MutableMap<String, MutableMemberList<PistonType>>
     ) {
         val node = child.value
         var name: String = node.firstDirectChild(PistonType.identifier)?.content ?: ""
-        val type: ItemType = when (node.type) {
+        val type: MemberType = when (node.type) {
             PistonType.traitDef ->
-                ItemType.Trait
+                MemberType.Trait
 
             PistonType.classDef ->
                 if (node.firstDirectChild(PistonType.functionParams) != null)
-                    ItemType.MultiInstanceClass
+                    MemberType.MultiInstanceClass
                 else
-                    ItemType.SingletonClass
+                    MemberType.SingletonClass
 
             PistonType.propertyDef ->
                 if (node.firstDirectChild(PistonType.valKw) != null)
-                    ItemType.Val
+                    MemberType.Val
                 else
-                    ItemType.Var
+                    MemberType.Var
 
             PistonType.functionDef -> when {
                 node.firstDirectChild(PistonType.functionParams) == null ->
-                    ItemType.Getter
+                    MemberType.Getter
 
                 name.length > 2 && name.endsWith("_=") -> {
                     name = name.dropLast(2)
-                    ItemType.Setter
+                    MemberType.Setter
                 }
 
-                else -> ItemType.Function
+                else -> MemberType.Function
             }
 
             else -> error("Something went wrong with the syntax set")
         }
 
         val loc = child.parentRelativeLocation
-        res.getOrPut(name) { MutableItemList() }.add(type, loc)
+        res.getOrPut(name) { MutableMemberList() }.add(type, loc)
     }
 
     private fun defNodeToReference(
         node: RedNode<PistonType>,
-        res: MutableMap<String, MutableItemList<PistonType>>
+        res: MutableMap<String, MutableMemberList<PistonType>>
     ) {
         var name: String = node.firstDirectChild(PistonType.identifier)?.content ?: ""
-        val type: ItemType = when (node.type) {
+        val type: MemberType = when (node.type) {
             PistonType.traitDef ->
-                ItemType.Trait
+                MemberType.Trait
 
             PistonType.classDef ->
                 if (node.firstDirectChild(PistonType.functionParams) != null)
-                    ItemType.MultiInstanceClass
+                    MemberType.MultiInstanceClass
                 else
-                    ItemType.SingletonClass
+                    MemberType.SingletonClass
 
             PistonType.propertyDef ->
                 if (node.firstDirectChild(PistonType.valKw) != null)
-                    ItemType.Val
+                    MemberType.Val
                 else
-                    ItemType.Var
+                    MemberType.Var
 
             PistonType.functionDef -> when {
                 node.firstDirectChild(PistonType.functionParams) == null ->
-                    ItemType.Getter
+                    MemberType.Getter
 
                 name.length > 2 && name.endsWith("_=") -> {
                     name = name.dropLast(2)
-                    ItemType.Setter
+                    MemberType.Setter
                 }
 
-                else -> ItemType.Function
+                else -> MemberType.Function
             }
 
             else -> error("Something went wrong with the syntax set")
         }
 
         val loc = node.location
-        res.getOrPut(name) { MutableItemList() }.add(type, loc)
+        res.getOrPut(name) { MutableMemberList() }.add(type, loc)
     }
 
-    private tailrec fun findFile(ref: ParentReference, stack: Stack<ItemReference>): FileReference =
-        if (ref.isFile) ref as FileReference else {
-            stack.push(ref as ItemReference)
+    private tailrec fun findFile(ref: ParentHandle, stack: Stack<MemberHandle>): FileHandle =
+        if (ref.isFile) ref as FileHandle else {
+            stack.push(ref as MemberHandle)
             findFile(ref.parent, stack)
         }
 
     private tailrec fun findNode(
         node: RedNode<PistonType>,
-        stack: Stack<ItemReference>,
-        parentRef: ItemReference
+        stack: Stack<MemberHandle>,
+        parentRef: MemberHandle
     ): RedNode<PistonType>? {
         if (stack.empty())
             return node
 
         val itemRef = stack.pop()
-        val pos = childItems[parentRef].value[itemRef.name]?.get(itemRef.type, itemRef.id) ?: return null
+        val pos = childItems[parentRef].value[itemRef.name]?.get(itemRef.memberType, itemRef.id) ?: return null
         return findNode(node.findAtRelative(pos) ?: return null, stack, itemRef)
     }
 
-    fun nodeFromItemRef(ref: ItemReference): RedNode<PistonType>? {
-        val refStack = Stack<ItemReference>()
+    fun nodeFromItemRef(ref: MemberHandle): RedNode<PistonType>? {
+        val refStack = Stack<MemberHandle>()
         val fileRef = findFile(ref, refStack)
         val node = ast[fileRef].value.asRedRoot()
         val firstRef = refStack.pop()
-        val firstPos = fileItems[fileRef].value[firstRef.name]?.get(firstRef.type, firstRef.id) ?: return null
+        val firstPos = fileItems[fileRef].value[firstRef.name]?.get(firstRef.memberType, firstRef.id) ?: return null
         return findNode(node.findAtRelative(firstPos) ?: return null, refStack, firstRef)
     }
 }
