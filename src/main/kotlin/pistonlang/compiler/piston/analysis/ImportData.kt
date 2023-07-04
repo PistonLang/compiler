@@ -1,11 +1,10 @@
 package pistonlang.compiler.piston.analysis
 
-import pistonlang.compiler.common.items.HandleTree
-import pistonlang.compiler.common.items.emptyHandleTree
+import pistonlang.compiler.common.items.DependencyList
 import pistonlang.compiler.piston.parser.PistonType
 
-data class ImportData(val tree: HandleTree<PistonType>, val nameMap: Map<String, List<Int>>) {
-    fun isEmpty() = tree.isEmpty()
+data class ImportData(val deps: DependencyList<PistonType>, val nameMap: Map<String, List<Int>>) {
+    fun isEmpty() = deps.isEmpty()
 }
 
-val emptyImportData = ImportData(emptyHandleTree, emptyMap())
+val emptyImportData = ImportData(emptyList(), emptyMap())

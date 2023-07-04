@@ -40,6 +40,7 @@ sealed interface MemberHandle : ParentHandle, ItemHandle {
 
 sealed interface ParameterizedHandle : ItemHandle
 
+
 data class FunctionHandle(
     override val parent: ParentHandle,
     override val name: String,
@@ -52,11 +53,15 @@ data class FunctionHandle(
         get() = MemberType.Function
 }
 
+sealed interface TypeHandle : ItemHandle
+
+sealed interface NewTypeHandle : MemberHandle, TypeHandle
+
 data class SingletonClassHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : NewTypeHandle {
     override val itemType: ItemType
         get() = ItemType.SingletonClass
 
@@ -68,7 +73,7 @@ data class MultiInstanceClassHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : NewTypeHandle {
     override val itemType: ItemType
         get() = ItemType.MultiInstanceClass
 
@@ -80,7 +85,7 @@ data class TraitHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : NewTypeHandle {
     override val itemType: ItemType
         get() = ItemType.Trait
 
@@ -147,7 +152,7 @@ data class ConstructorHandle(
 data class TypeParamHandle(
     val parent: ParentHandle,
     val id: Int
-) : ItemHandle {
+) : ItemHandle, TypeHandle {
     override val itemType: ItemType
         get() = ItemType.TypeParam
 }
@@ -155,7 +160,7 @@ data class TypeParamHandle(
 /**
  * This handle is used for representing an error in places when a reference would be expected
  */
-object NullHandle : ItemHandle {
+object ErrorHandle : ItemHandle {
     override val itemType: ItemType
         get() = ItemType.Null
 }

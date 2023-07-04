@@ -12,7 +12,7 @@ import pistonlang.compiler.common.queries.QueryVersion
  * A persistent tree representing the package/file hierarchy of a project
  */
 data class PackageTree(
-    val reference: PackageHandle,
+    val handle: PackageHandle,
     val lastUpdated: QueryVersion,
     val children: PersistentMap<String, PackageTree> = persistentMapOf(),
     val files: PersistentSet<FileHandle> = persistentSetOf(),
@@ -29,7 +29,7 @@ data class PackageTree(
         val containsChild = children.contains(key)
         val node =
             if (containsChild) children[key]!!
-            else PackageTree(reference.subpackage(key), version)
+            else PackageTree(handle.subpackage(key), version)
         val new = node.add(path, index + 1, file, version)
         return this.copy(lastUpdated = version, children = children.put(key, new), validCount = validCount + if (containsChild) 0 else 1)
     }

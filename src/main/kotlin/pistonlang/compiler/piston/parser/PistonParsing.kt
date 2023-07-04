@@ -51,7 +51,7 @@ object PistonParsing {
 
     private fun P.handlePathAccess() = handleAccess(Ty.pathAccess)
 
-    private fun P.handleTypePath(): GotNode = createNode(Ty.typePath) {
+    private fun P.pathType(): GotNode = createNode(Ty.pathType) {
         handlePathSegment()
         parsePathTypeTail()
     }
@@ -64,7 +64,7 @@ object PistonParsing {
 
     private fun P.expectTypeInstance(): GotNode {
         when (currType) {
-            Ty.identifier -> handleTypePath()
+            Ty.identifier -> pathType()
             Ty.lParen -> handleNestedType()
             else -> return makeError()
         }
@@ -79,11 +79,6 @@ object PistonParsing {
     }
 
     private fun P.expectTypeArg(): GotNode = createNode(Ty.typeArg) {
-        when (currType) {
-            Ty.subtype, Ty.supertype -> push()
-            else -> {}
-        }
-
         expectTypeInstance()
     }
 
@@ -266,13 +261,9 @@ object PistonParsing {
             push()  // rParen
     }
 
-    private fun P.expectPathSegment(): GotNode =
-        if (at(Ty.identifier)) {
-            handlePathSegment()
-            true
-        } else {
-            makeError()
-        }
+    private fun P.expectPathSegment(): GotNode = createNode(PistonType.pathSegment) {
+        if (consume(PistonType.identifier)) parseTypeArgs() else makeError()
+    }
 
     private tailrec fun P.handlePostfix() {
         when (currType) {

@@ -36,7 +36,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    private val filePackage: Query<FileHandle, PackageHandle> = run {
+    val filePackage: Query<FileHandle, PackageHandle> = run {
         val packFun = { key: FileHandle, _: QueryVersion ->
             val ops = options[Unit]
             val path = key.path.removePrefix(ops.value.startPath).split('/').dropLast(1)

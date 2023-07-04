@@ -137,12 +137,12 @@ fun <T> RedNode<T>.findParent(set: SyntaxSet<T>): RedNode<T>? where T : SyntaxTy
 
 inline fun <Type> RedNode<Type>.firstDirectChildOr(
     set: SyntaxSet<Type>,
-    fn: () -> GreenNode<Type>
+    fn: () -> RedNode<Type>
 ) where Type : SyntaxType, Type : Enum<Type> = this.firstDirectChild(set) ?: fn()
 
 inline fun <Type> RedNode<Type>.lastDirectChildOr(
     set: SyntaxSet<Type>,
-    fn: () -> GreenNode<Type>
+    fn: () -> RedNode<Type>
 ) where Type : SyntaxType, Type : Enum<Type> = this.lastDirectChild(set) ?: fn()
 
 fun <T : SyntaxType> GreenNode<T>.asRedRoot() = RedNode(null, this, 0)

@@ -25,7 +25,7 @@ File@0
   │ │ └─TypeAnnotation@13
   │ │   ├─Colon@13
   │ │   ├─Whitespace( )@14
-  │ │   └─TypePath@15
+  │ │   └─PathType@15
   │ │     └─PathSegment@15
   │ │       └─Identifier(Int)@15
   │ ├─Comma@18
@@ -35,7 +35,7 @@ File@0
   │ │ └─TypeAnnotation@21
   │ │   ├─Colon@21
   │ │   ├─Whitespace( )@22
-  │ │   └─TypePath@23
+  │ │   └─PathType@23
   │ │     └─PathSegment@23
   │ │       └─Identifier(Int)@23
   │ ├─Comma@26
@@ -45,7 +45,7 @@ File@0
   │ │ └─TypeAnnotation@29
   │ │   ├─Colon@29
   │ │   ├─Whitespace( )@30
-  │ │   └─TypePath@31
+  │ │   └─PathType@31
   │ │     └─PathSegment@31
   │ │       └─Identifier(T)@31
   │ └─RParen@32
@@ -128,13 +128,13 @@ File@0
 │ │ │ └─TypeAnnotation@15
 │ │ │   ├─Colon@15
 │ │ │   ├─Whitespace( )@16
-│ │ │   └─TypePath@17
+│ │ │   └─PathType@17
 │ │ │     └─PathSegment@17
 │ │ │       ├─Identifier(List)@17
 │ │ │       └─TypeArgs@21
 │ │ │         ├─LBracket@21
 │ │ │         ├─TypeArg@22
-│ │ │         │ └─TypePath@22
+│ │ │         │ └─PathType@22
 │ │ │         │   └─PathSegment@22
 │ │ │         │     └─Identifier(T)@22
 │ │ │         └─RBracket@23
@@ -171,7 +171,7 @@ File@0
 │ │ │ └─TypeAnnotation@61
 │ │ │   ├─Colon@61
 │ │ │   ├─Whitespace( )@62
-│ │ │   └─TypePath@63
+│ │ │   └─PathType@63
 │ │ │     └─PathSegment@63
 │ │ │       └─Identifier(Int)@63
 │ │ └─RParen@66
@@ -259,7 +259,7 @@ File@0
 │ │ │ └─TypeAnnotation@165
 │ │ │   ├─Colon@165
 │ │ │   ├─Whitespace( )@166
-│ │ │   └─TypePath@167
+│ │ │   └─PathType@167
 │ │ │     └─PathSegment@167
 │ │ │       └─Identifier(Int)@167
 │ │ └─RParen@170
@@ -268,7 +268,7 @@ File@0
 │ │ ├─Subtype@172
 │ │ ├─Whitespace( )@174
 │ │ └─IntersectionType@175
-│ │   └─TypePath@175
+│ │   └─PathType@175
 │ │     └─PathSegment@175
 │ │       └─Identifier(A)@175
 │ ├─Whitespace( )@176
@@ -324,7 +324,7 @@ File@0
   │ ├─Subtype@241
   │ ├─Whitespace( )@243
   │ └─IntersectionType@244
-  │   └─TypePath@244
+  │   └─PathType@244
   │     └─PathSegment@244
   │       └─Identifier(A)@244
   ├─Whitespace( )@245

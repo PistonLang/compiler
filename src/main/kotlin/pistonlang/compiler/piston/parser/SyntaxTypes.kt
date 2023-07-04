@@ -103,13 +103,13 @@ enum class PistonType(
     statementBlock,
     file,
 
-    typePath,
     typeBound,
     typeParams,
     typeArg,
     typeArgs,
     typeGuard,
 
+    pathType,
     nestedType,
     nullableType,
     intersectionType,
@@ -128,6 +128,10 @@ object PistonSyntaxSets {
     )
 
     val typePath = syntaxSet(
-        PistonType.pathAccess, PistonType.identifier
+        PistonType.pathAccess, PistonType.pathSegment
+    )
+
+    val types = syntaxSet(
+        PistonType.pathType, PistonType.nestedType, PistonType.nullableType,
     )
 }

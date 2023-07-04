@@ -3,8 +3,6 @@ package pistonlang.compiler.piston.analysis
 import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.main.CompilerInstance
-import pistonlang.compiler.common.main.stlItems
-import pistonlang.compiler.common.main.stlTree
 import pistonlang.compiler.common.queries.QueryVersionData
 import pistonlang.compiler.piston.parser.PistonLexer
 import pistonlang.compiler.piston.parser.PistonParsing
@@ -46,7 +44,7 @@ class STLReferencesTest {
         instance.addHandler(handler)
         instance.add(stlTree)
         val res = stlItems.asSequence().fold(StringBuilder()) { builder, (_, ref) ->
-            builder.appendLine("${ref.name}: ${handler.nodeFromItemRef(ref)?.location}")
+            builder.appendLine("${ref.name}: ${handler.nodeFromMemberHandle(ref)?.location}")
         }.dropLast(1).toString()
         assertEquals(expected, res)
     }
