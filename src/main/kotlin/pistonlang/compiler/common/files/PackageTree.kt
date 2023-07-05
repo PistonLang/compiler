@@ -18,7 +18,7 @@ data class PackageTree(
     val files: PersistentSet<FileHandle> = persistentSetOf(),
     val validCount: Int = 0,
 ) {
-    private fun isValid(): Boolean = validCount > 0 || files.isNotEmpty()
+    val isValid get(): Boolean = validCount > 0 || files.isNotEmpty()
     fun add(pack: PackageHandle, file: FileHandle, version: QueryVersion): PackageTree =
         add(pack.path, 0, file, version)
 
@@ -57,7 +57,7 @@ data class PackageTree(
         val newChild = children[key]?.remove(path, index + 1, file, version) ?: return this
 
         return this.copy(
-            validCount = if (newChild.isValid()) validCount else validCount - 1,
+            validCount = if (newChild.isValid) validCount else validCount - 1,
             children = children.put(key, newChild),
             lastUpdated = version,
         )

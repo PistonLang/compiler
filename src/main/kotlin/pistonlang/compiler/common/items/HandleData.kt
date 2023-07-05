@@ -13,3 +13,5 @@ data class HandleData<out Type: SyntaxType>(
 val nullReferenceList = nonEmptyListOf(ErrorHandle)
 
 typealias DependencyList<Type> = List<HandleData<Type>>
+
+data class Dependent<Type: SyntaxType, Data>(val dependencies: DependencyList<Type>, val data: Data)

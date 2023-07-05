@@ -86,7 +86,7 @@ class HandlesTest {
         assertAll(expectations.map { (code, expected) ->
             {
                 instance.addFile(reference, code)
-                assertEquals(expected, handler.fileItems[reference].value)
+                assertEquals(expected, handler.fileItems[reference])
             }
         })
     }

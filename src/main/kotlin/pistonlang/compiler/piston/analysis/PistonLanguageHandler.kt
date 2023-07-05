@@ -49,14 +49,14 @@ class PistonLanguageHandler(
         val collectFn = { key: FileHandle, _: QueryVersion ->
             val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
-            ast[key].value.childSequence
+            ast[key].childSequence
                 .filter { child -> child.type in PistonSyntaxSets.defs }
                 .forEach { child -> defNodeToReference(child, res) }
 
             res.mapValues { (_, list) -> list.toImmutable() }
         }
         Query(instance.versionData, collectFn) { key, old, version ->
-            if (ast[key].modified <= old.checked) return@Query old.copy(checked = version)
+            if (ast.lastModified(key) <= old.checked) return@Query old.copy(checked = version)
 
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
@@ -78,7 +78,7 @@ class PistonLanguageHandler(
             res.mapValues { (_, list) -> list.toImmutable() }
         }
         Query(instance.versionData, collectFn) { key, old, version ->
-            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
 
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
@@ -95,7 +95,7 @@ class PistonLanguageHandler(
                 .toList()
         }
         Query(instance.versionData, collectFn) { key, old, version ->
-            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
 
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
@@ -104,14 +104,14 @@ class PistonLanguageHandler(
 
     val fileImportData: Query<FileHandle, ImportData> = run {
         val collectFn = fn@{ key: FileHandle, _: QueryVersion ->
-            val fileAst = ast[key].value
+            val fileAst = ast[key]
 
             val importNode = fileAst
                 .firstDirectRawChildOr(PistonType.import) { return@fn emptyImportData }
                 .firstDirectRawChildOr(PistonType.importGroup) { return@fn emptyImportData }
                 .asRedRoot()
 
-            val tree = instance.packageTree[Unit].value
+            val tree = instance.packageTree[Unit]
             val deps = mutableListOf<HandleData<PistonType>>()
             val nameMap = hashMapOf<String, MutableList<Int>>()
             handleImportGroup(tree, importNode, deps, nameMap)
@@ -127,33 +127,33 @@ class PistonLanguageHandler(
     private fun handleImportGroup(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<HandleData<PistonType>>,
+        deps: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
     ) = node.childSequence
         .filter { it.type == PistonType.importSegment }
-        .forEach { segment -> handleImportSegment(pack, segment, items, nameMap) }
+        .forEach { segment -> handleImportSegment(pack, segment, deps, nameMap) }
 
     private fun handleImportSegment(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<HandleData<PistonType>>,
+        deps: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
     ) {
         val group = node.lastDirectChild(PistonType.importGroup)
         val path = node.firstDirectChild(PistonSyntaxSets.importPath)!!
 
         if (group == null) {
-            return handleDirectImportPath(pack, path, items, nameMap)
+            return handleDirectImportPath(pack, path, deps, nameMap)
         }
 
-        val newPack = handleImportPath(pack, path, items)
-        handleImportGroup(newPack, group, items, nameMap)
+        val newPack = handleImportPath(pack, path, deps)
+        handleImportGroup(newPack, group, deps, nameMap)
     }
 
     private fun handleImportPath(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<HandleData<PistonType>>,
+        deps: MutableList<HandleData<PistonType>>,
     ): PackageTree? {
         val identNode: RedNode<PistonType>
         val currPackage: PackageTree? = if (node.type == PistonType.identifier) {
@@ -162,14 +162,14 @@ class PistonLanguageHandler(
         } else {
             val iter = node.childIterator
             val left = iter.findFirst { it.type in PistonSyntaxSets.importPath }!!
-            val newPackage = handleImportPath(pack, left, items)
+            val newPackage = handleImportPath(pack, left, deps)
             identNode = iter.findFirst { it.type == PistonType.identifier } ?: return null
             newPackage
         }
 
         val newName = identNode.content
         val subpackage = currPackage?.let { it.children[newName] } ?: run {
-            items.add(HandleData(identNode.location, nullReferenceList))
+            deps.add(HandleData(identNode.location, nullReferenceList))
             return null
         }
 
@@ -179,7 +179,7 @@ class PistonLanguageHandler(
     private fun handleDirectImportPath(
         pack: PackageTree?,
         node: RedNode<PistonType>,
-        items: MutableList<HandleData<PistonType>>,
+        deps: MutableList<HandleData<PistonType>>,
         nameMap: MutableMap<String, MutableList<Int>>,
     ) {
         val identNode: RedNode<PistonType>
@@ -189,22 +189,22 @@ class PistonLanguageHandler(
         } else {
             val iter = node.childIterator
             val left = iter.findFirst { it.type in PistonSyntaxSets.importPath }!!
-            val newPackage = handleImportPath(pack, left, items)
+            val newPackage = handleImportPath(pack, left, deps)
             identNode = iter.findFirst { it.type == PistonType.identifier } ?: return
             newPackage
         }
 
-        val index = items.size
+        val index = deps.size
 
         if (currPackage == null) {
-            items.add(HandleData(identNode.location, nullReferenceList))
+            deps.add(HandleData(identNode.location, nullReferenceList))
             return
         }
 
         val newName = identNode.content
-        val handleList = instance.packageItems[currPackage.handle].value[newName]
+        val handleList = instance.packageItems[currPackage.handle][newName]
         val handles = handleList?.assertNonEmpty() ?: nullReferenceList
-        items.add(HandleData(identNode.location, handles))
+        deps.add(HandleData(identNode.location, handles))
         nameMap.getOrPut(newName) { mutableListOf() }.add(index)
     }
 
@@ -296,7 +296,7 @@ class PistonLanguageHandler(
                 .let { listOf(it.location) }
         }
         Query(instance.versionData, collectFn) { key, old, version ->
-            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
 
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
@@ -310,18 +310,40 @@ class PistonLanguageHandler(
                 .firstDirectChildOr(PistonType.intersectionType) { return@fn errorSupertypeData }
                 .asRoot()
 
-            val data = mutableListOf<HandleData<PistonType>>()
+            val deps = mutableListOf<HandleData<PistonType>>()
             val scope = buildTypeParamScopeFor(key)
 
             val types = node.childSequence
                 .filter { it.type in PistonSyntaxSets.types }
-                .map { handleTypeNode(it, data, scope, false) }
+                .map { handleTypeNode(it, deps, scope, false) }
                 .toList()
 
-            if (types.isEmpty()) emptySuperTypeData else SupertypeData(data, types.assertNonEmpty())
+            if (types.isEmpty()) emptySuperTypeData else SupertypeData(deps, types.assertNonEmpty())
         }
         Query(instance.versionData, collectFn) { key, old, version ->
-            if (ast[key.findFile()].modified <= old.checked) return@Query old.copy(checked = version)
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
+
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
+    val returnType: Query<TypedHandle, ReturnData> = run {
+        val collectFn = fn@{ key: TypedHandle, _: QueryVersion ->
+            val node = (nodeFromMemberHandle(key) ?: return@fn errorReturnData)
+                .firstDirectChildOr(PistonType.typeAnnotation) { return@fn unitReturnData }
+                .firstDirectChildOr(PistonSyntaxSets.types) { return@fn errorReturnData }
+                .asRoot()
+
+            val deps = mutableListOf<HandleData<PistonType>>()
+            val scope = buildTypeParamScopeFor(key)
+
+            val type = handleTypeNode(node, deps, scope, false)
+
+            ReturnData(deps, type)
+        }
+        Query(instance.versionData, collectFn) { key, old, version ->
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
 
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
@@ -380,7 +402,7 @@ class PistonLanguageHandler(
         if (firstPacks.size != 1)
             return errorInstance
 
-        var pack = instance.packageTree[Unit].value.nodeFor(firstPacks.first() as PackageHandle)!!
+        var pack = instance.packageTree[Unit].nodeFor(firstPacks.first() as PackageHandle)!!
 
         while (level != 1) {
             val identNode = currNode
@@ -395,7 +417,7 @@ class PistonLanguageHandler(
         }
 
         val lastSegment = currNode.firstDirectChild(PistonType.pathSegment) ?: return errorInstance
-        val packScope = StaticScope(null, instance.packageItems[pack.handle].value)
+        val packScope = StaticScope(null, instance.packageItems[pack.handle])
         return handlePathSegmentType(lastSegment, packScope, deps, nullable)
     }
 
@@ -427,7 +449,7 @@ class PistonLanguageHandler(
 
         val type = types.first() as TypeHandle
 
-        val expectedArgs = if (type is NewTypeHandle) instance.typeParams[type].value.size else 0
+        val expectedArgs = if (type is NewTypeHandle) instance.typeParams[type].size else 0
 
         // TODO: Keep track of errors
         val endArgs = when {
@@ -469,40 +491,51 @@ class PistonLanguageHandler(
         stack: Stack<MemberHandle>,
         parentRef: MemberHandle
     ): RedNode<PistonType>? {
-        if (stack.empty())
+        if (stack.isEmpty())
             return node
 
         val itemRef = stack.pop()
-        val pos = childItems[parentRef].value[itemRef.name]?.get(itemRef.memberType, itemRef.id) ?: return null
+        val pos = childItems[parentRef][itemRef.name]?.get(itemRef.memberType, itemRef.id) ?: return null
         return findNode(node.findAtRelative(pos) ?: return null, stack, itemRef)
     }
 
     fun nodeFromMemberHandle(ref: MemberHandle): RedNode<PistonType>? {
         val refStack = Stack<MemberHandle>()
         val fileRef = findFile(ref, refStack)
-        val node = ast[fileRef].value.asRedRoot()
+        val node = ast[fileRef].asRedRoot()
         val firstRef = refStack.pop()
-        val firstPos = fileItems[fileRef].value[firstRef.name]?.get(firstRef.memberType, firstRef.id) ?: return null
+        val firstPos = fileItems[fileRef][firstRef.name]?.get(firstRef.memberType, firstRef.id) ?: return null
         return findNode(node.findAtRelative(firstPos) ?: return null, refStack, firstRef)
     }
 
     private fun buildFileScope(fileHandle: FileHandle): Scope {
-        val pack = instance.filePackage[fileHandle].value
-        val packItems = instance.packageItems[pack].value
-        val importData = fileImportData[fileHandle].value
+        val pack = instance.filePackage[fileHandle]
+        val packItems = instance.packageItems[pack]
+        val importData = fileImportData[fileHandle]
         val packScope = StaticScope(BaseScope, packItems)
 
         return ImportScope(packScope, importData)
     }
 
+    private fun buildStaticMemberScope(handle: MemberHandle, withTypeParams: Boolean): Scope {
+        val parentScope =
+            if (withTypeParams) buildTypeParamScopeFor(handle)
+            else buildStaticParentScope(handle.parent, false)
+        val items = instance.childItems[handle]
+
+        return StaticTypeScope(parentScope, items)
+    }
+
+    private fun buildStaticParentScope(handle: ParentHandle, withTypeParams: Boolean) =
+        if (handle.isFile) buildFileScope(handle as FileHandle)
+        else buildStaticMemberScope(handle as MemberHandle, withTypeParams)
+
     private fun buildTypeParamScopeFor(handle: MemberHandle): Scope {
         val parent = handle.parent
 
-        if (!parent.isFile) TODO()
+        val parentScope = buildStaticParentScope(parent, !handle.itemType.type)
+        val typeParams = instance.typeParams[handle]
 
-        val fileScope = buildFileScope(parent as FileHandle)
-        val typeParams = instance.typeParams[handle].value
-
-        return StaticScope(fileScope, typeParams)
+        return StaticScope(parentScope, typeParams)
     }
 }

@@ -25,3 +25,12 @@ inline fun <T> Iterator<T>.findFirst(fn: (T) -> Boolean): T? {
 
     return null
 }
+
+object EmptySequence : Sequence<Nothing> {
+    override fun iterator(): Iterator<Nothing> = EmptyIterator
+}
+
+class SingletonSequence<T>(value: T) : Sequence<T> {
+    private val iter = SingletonIterator(value)
+    override fun iterator() = iter
+}

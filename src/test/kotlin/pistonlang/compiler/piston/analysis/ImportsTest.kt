@@ -17,7 +17,7 @@ class ImportsTest {
             data("a.pi") {
                 """
                     def a(num: Int32): Int32 = 2 * num
-                """.trimIndent() to "ImportData(tree=HandleTree(dataList=[], nodes=[]), nameMap={})"
+                """.trimIndent() to "Dependent(dependencies=[], data={})"
             }
         }
         child("bar") {
@@ -25,10 +25,12 @@ class ImportsTest {
                 """
                     val a: Int32 = 5
                     var b: Int32 = 10
-                """.trimIndent() to "ImportData(tree=HandleTree(dataList=[], nodes=[]), nameMap={})"
+                """.trimIndent() to "Dependent(dependencies=[], data={})"
             }
             child("c") {
-                data("empty.pi") { "" to "ImportData(tree=HandleTree(dataList=[], nodes=[]), nameMap={})" }
+                data("empty.pi") {
+                    "" to "Dependent(dependencies=[], data={})"
+                }
             }
         }
         data("test.pi") {
@@ -39,7 +41,7 @@ class ImportsTest {
                 }
                 
                 def useAll(): Int32 = a(a + b) - c.d
-            """.trimIndent() to "ImportData(tree=HandleTree(dataList=[HandleData(location=NodeLocation(pos=10..11, type=identifier), handles=NonEmptyList(list=[FunctionHandle(parent=FileHandle(path=foo/a.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=49..50, type=identifier), handles=NonEmptyList(list=[ValHandle(parent=FileHandle(path=bar/items.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=52..53, type=identifier), handles=NonEmptyList(list=[VarHandle(parent=FileHandle(path=bar/items.pi), name=b, id=0)])), HandleData(location=NodeLocation(pos=55..56, type=identifier), handles=NonEmptyList(list=[PackageHandle(path=[bar, c])]))], nodes=[HandleTreeNode(fullRange=NodeLocation(pos=6..11, type=importPathAccess), index=0, children=[HandleTreeNode(fullRange=NodeLocation(pos=6..9, type=identifier), index=0, children=[])]), HandleTreeNode(fullRange=NodeLocation(pos=42..58, type=importSegment), index=-1, children=[HandleTreeNode(fullRange=NodeLocation(pos=42..45, type=identifier), index=1, children=[]), HandleTreeNode(fullRange=NodeLocation(pos=49..50, type=identifier), index=1, children=[]), HandleTreeNode(fullRange=NodeLocation(pos=52..53, type=identifier), index=2, children=[]), HandleTreeNode(fullRange=NodeLocation(pos=55..56, type=identifier), index=3, children=[])])]), nameMap={a=[0, 1], b=[2], c=[3]})"
+            """.trimIndent() to "Dependent(dependencies=[HandleData(location=NodeLocation(pos=10..11, type=identifier), handles=NonEmptyList(nested=[FunctionHandle(parent=FileHandle(path=foo/a.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=49..50, type=identifier), handles=NonEmptyList(nested=[ValHandle(parent=FileHandle(path=bar/items.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=52..53, type=identifier), handles=NonEmptyList(nested=[VarHandle(parent=FileHandle(path=bar/items.pi), name=b, id=0)])), HandleData(location=NodeLocation(pos=55..56, type=identifier), handles=NonEmptyList(nested=[PackageHandle(path=[bar, c])]))], data={a=[0, 1], b=[2], c=[3]})"
         }
     }
 
@@ -52,7 +54,7 @@ class ImportsTest {
         instance.add(tree.mapValues { it.first })
         assertAll(tree.map { (file, data) ->
             {
-                assertEquals(data.second, handler.fileImportData[file].value.toString())
+                assertEquals(data.second, handler.fileImportData[file].toString())
             }
         })
     }

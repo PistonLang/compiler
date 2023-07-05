@@ -49,12 +49,12 @@ class TypeParamsTest {
         assertAll(tree.map { (file, data) ->
             {
                 val expected = data.second
-                handler.fileItems[file].value.forEach { (name, list) ->
+                handler.fileItems[file].forEach { (name, list) ->
                     MemberType.values().forEach inner@ { type ->
                         if (!list.iteratorFor(type).hasNext()) return@inner
 
                         val ref = type.buildHandle(file, name, 0)
-                        assertEquals(expected, handler.typeParams[ref].value.toString())
+                        assertEquals(expected, handler.typeParams[ref].toString())
                     }
                 }
             }

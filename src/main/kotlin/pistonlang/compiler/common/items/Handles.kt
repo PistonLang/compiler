@@ -1,23 +1,35 @@
 package pistonlang.compiler.common.items
 
+/**
+ * A handle to something that can be a parent of another handle
+ */
 sealed interface ParentHandle {
     val isFile: Boolean get() = false
 
     fun findFile(): FileHandle
 }
 
-data class FileHandle(val path: String) : ParentHandle {
+/**
+ * A handle to a file, represented by a path
+ */
+@JvmInline
+value class FileHandle(val path: String) : ParentHandle {
     override val isFile: Boolean
         get() = true
 
     override fun findFile(): FileHandle = this
 }
 
+/**
+ * A handle to an item (anything that can be referenced during type-checking)
+ */
 sealed interface ItemHandle {
     val itemType: ItemType
-    val isError: Boolean get() = false
 }
 
+/**
+ * A handle to a package, represented by a path
+ */
 @JvmInline
 value class PackageHandle(val path: List<String>) : ItemHandle {
     fun subpackage(name: String) = PackageHandle(path + name)
@@ -25,6 +37,8 @@ value class PackageHandle(val path: List<String>) : ItemHandle {
     override val itemType: ItemType
         get() = ItemType.Package
 }
+
+val rootPackage = PackageHandle(emptyList())
 
 /**
  * A handle for a file member
@@ -38,14 +52,21 @@ sealed interface MemberHandle : ParentHandle, ItemHandle {
     override fun findFile(): FileHandle = parent.findFile()
 }
 
+/**
+ * A handle for an item which has parameters
+ */
 sealed interface ParameterizedHandle : ItemHandle
 
+/**
+ * A handle for a member which has a type or return type
+ */
+sealed interface TypedHandle : MemberHandle
 
 data class FunctionHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : ParameterizedHandle, MemberHandle {
+) : ParameterizedHandle, TypedHandle {
     override val itemType: ItemType
         get() = ItemType.Function
 
@@ -53,8 +74,14 @@ data class FunctionHandle(
         get() = MemberType.Function
 }
 
+/**
+ * A handle to a type, which can be used in a type instance
+ */
 sealed interface TypeHandle : ItemHandle
 
+/**
+ * A handle to a type declaration
+ */
 sealed interface NewTypeHandle : MemberHandle, TypeHandle
 
 data class SingletonClassHandle(
@@ -97,7 +124,7 @@ data class ValHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : TypedHandle {
     override val itemType: ItemType
         get() = ItemType.Val
 
@@ -109,7 +136,7 @@ data class VarHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : TypedHandle {
     override val itemType: ItemType
         get() = ItemType.Var
 
@@ -121,7 +148,7 @@ data class GetterHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle {
+) : TypedHandle {
     override val itemType: ItemType
         get() = ItemType.Getter
 
@@ -133,7 +160,7 @@ data class SetterHandle(
     override val parent: ParentHandle,
     override val name: String,
     override val id: Int
-) : MemberHandle, ParameterizedHandle {
+) : TypedHandle, ParameterizedHandle {
     override val itemType: ItemType
         get() = ItemType.Setter
 
@@ -160,7 +187,9 @@ data class TypeParamHandle(
 /**
  * This handle is used for representing an error in places when a reference would be expected
  */
-object ErrorHandle : ItemHandle {
+object ErrorHandle : ItemHandle, TypeHandle {
     override val itemType: ItemType
         get() = ItemType.Null
+
+    override fun toString() = "ErrorHandle"
 }

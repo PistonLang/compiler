@@ -26,10 +26,10 @@ class SuperTypesTest {
         }
     }
 
-    val expected = listOf(
+    private val expected = listOf(
         emptySuperTypeData,
-        SupertypeData(
-            tree = listOf(
+        Dependent(
+            dependencies = listOf(
                 HandleData(
                     location = NodeLocation(pos = 0..5, type = PistonType.identifier),
                     handles = nonEmptyListOf(
@@ -37,7 +37,7 @@ class SuperTypesTest {
                     )
                 )
             ),
-            types = nonEmptyListOf(
+            data = nonEmptyListOf(
                 TypeInstance(
                     type = TraitHandle(
                         parent = FileHandle(path = "foo.pi"),
@@ -49,8 +49,8 @@ class SuperTypesTest {
                 )
             )
         ),
-        SupertypeData(
-            tree = listOf(
+        Dependent(
+            dependencies = listOf(
                 HandleData(
                     location = NodeLocation(pos = 0..3, type = PistonType.identifier),
                     handles = nonEmptyListOf(
@@ -69,7 +69,7 @@ class SuperTypesTest {
                     )
                 )
             ),
-            types = nonEmptyListOf(
+            data = nonEmptyListOf(
                 TypeInstance(
                     type = TraitHandle(
                         parent = FileHandle(path = "foo.pi"),
@@ -102,12 +102,12 @@ class SuperTypesTest {
 
         instance.add(tree)
         val value = instance
-            .packageItems[PackageHandle(emptyList())].value
+            .packageItems[PackageHandle(emptyList())]
             .asSequence()
             .flatMap { (_, values) ->
                 values
                     .filter { it.itemType.type }
-                    .map { key -> handler.supertypes[key as NewTypeHandle].value }
+                    .map { key -> handler.supertypes[key as NewTypeHandle] }
             }
             .toList()
 

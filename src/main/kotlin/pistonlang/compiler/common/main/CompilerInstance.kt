@@ -71,24 +71,26 @@ class CompilerInstance(val versionData: QueryVersionData) {
         val pack = filePackage[change.file]
 
         return when (change.type) {
-            ChangeType.Addition -> tree.add(pack.value, change.file, change.version)
+            ChangeType.Addition -> tree.add(pack, change.file, change.version)
 
-            ChangeType.Update -> tree.update(pack.value, change.file, change.version)
+            ChangeType.Update -> tree.update(pack, change.file, change.version)
 
-            ChangeType.Removal -> tree.remove(pack.value, change.file, change.version)
+            ChangeType.Removal -> tree.remove(pack, change.file, change.version)
         }
     }
 
     val packageItems: Query<PackageHandle, Map<String, List<ItemHandle>>> = run {
         val collectFn = fn@{ key: PackageHandle, _: QueryVersion ->
-            val node = packageTree[Unit].value.nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
+            val node = packageTree[Unit].nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
-            node.children.forEach { (name, _) ->
-                res.getOrPut(name) { mutableListOf() }.add(PackageHandle(key.path + name))
+            node.children.forEach { (name, node) ->
+                if (node.isValid) res
+                    .getOrPut(name) { mutableListOf() }
+                    .add(PackageHandle(key.path + name))
             }
             node.files.forEach { file ->
-                val handler = fileHandler[file].value ?: return@forEach
-                handler.fileItems[file].value.forEach { (name, list) ->
+                val handler = fileHandler[file] ?: return@forEach
+                handler.fileItems[file].forEach { (name, list) ->
                     MemberType.values().forEach { type ->
                         list.iteratorFor(type).withIndex().forEach { (index, _) ->
                             res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(file, name, index))
@@ -107,8 +109,8 @@ class CompilerInstance(val versionData: QueryVersionData) {
     val childItems: Query<MemberHandle, Map<String, List<ItemHandle>>> = run {
         val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
-            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<ItemHandle>>()
-            handler.childItems[key].value.forEach { (name, list) ->
+            val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<ItemHandle>>()
+            handler.childItems[key].forEach { (name, list) ->
                 MemberType.values().forEach { type ->
                     list.iteratorFor(type).withIndex().forEach { (index, _) ->
                         res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(key, name, index))
@@ -125,8 +127,8 @@ class CompilerInstance(val versionData: QueryVersionData) {
 
     val typeParams: Query<MemberHandle, Map<String, List<TypeParamHandle>>> = run {
         val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
-            val handler = fileHandler[key.findFile()].value ?: return@fn emptyMap<String, List<TypeParamHandle>>()
-            handler.typeParams[key].value.withIndex().groupBy({ it.value.first }) {
+            val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<TypeParamHandle>>()
+            handler.typeParams[key].withIndex().groupBy({ it.value.first }) {
                 TypeParamHandle(key, it.index)
             }
         }
@@ -138,8 +140,8 @@ class CompilerInstance(val versionData: QueryVersionData) {
 
     val constructors: Query<MultiInstanceClassHandle, List<ConstructorHandle>> = run {
         val collectFn = fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
-            val handler = fileHandler[key.findFile()].value ?: return@fn emptyList<ConstructorHandle>()
-            handler.constructors[key].value.indices.map { ConstructorHandle(key, it) }
+            val handler = fileHandler[key.findFile()] ?: return@fn emptyList<ConstructorHandle>()
+            handler.constructors[key].indices.map { ConstructorHandle(key, it) }
         }
         Query(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
@@ -163,3 +165,40 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 }
+
+fun PackageHandle.hierarchyIterator(instance: CompilerInstance) =
+    object : Iterator<MemberHandle> {
+        private var iterStack = Stack<Iterator<MemberHandle>>()
+        private var iter = instance.packageItems[this@hierarchyIterator]
+            .asSequence()
+            .flatMap { (_, list) -> list }
+            .filterIsInstance<MemberHandle>()
+            .iterator()
+
+        override fun hasNext(): Boolean = iter.hasNext()
+
+        private fun findNext(handle: MemberHandle) {
+            val next = instance.childItems[handle]
+                .asSequence()
+                .flatMap { (_, list) -> list }
+                .filterIsInstance<MemberHandle>()
+                .iterator()
+
+            if (next.hasNext()) {
+                iterStack.push(iter)
+                iter = next
+            } else findNext()
+        }
+
+        private tailrec fun findNext() {
+            if (iter.hasNext() || iterStack.isEmpty()) return
+            iter = iterStack.pop()
+            findNext()
+        }
+
+        override fun next(): MemberHandle {
+            val res = iter.next()
+            findNext(res)
+            return res
+        }
+    }

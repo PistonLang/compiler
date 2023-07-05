@@ -53,10 +53,10 @@ class ConstructorTest {
         assertAll(tree.map { (file, data) ->
             fn@{
                 val expected = data.second
-                handler.fileItems[file].value.forEach { (name, list) ->
+                handler.fileItems[file].forEach { (name, list) ->
                     if (!list.iteratorFor(MemberType.MultiInstanceClass).hasNext()) return@fn
                     val ref = MultiInstanceClassHandle(file, name, 0)
-                    assertEquals(expected, handler.constructors[ref].value)
+                    assertEquals(expected, handler.constructors[ref])
                 }
             }
         })

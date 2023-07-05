@@ -6,7 +6,6 @@ import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.SyntaxSet
 import pistonlang.compiler.util.contains
-import pistonlang.compiler.util.isBefore
 
 class RedNode<Type : SyntaxType> internal constructor(
     val parent: RedNode<Type>?,
@@ -46,7 +45,7 @@ class RedNode<Type : SyntaxType> internal constructor(
 
     fun findAtAbsolute(loc: AbsoluteNodeLoc<Type>) = findAtAbsolute(loc.pos, loc.type)
 
-    fun findAtRelative(span: IntRange, type: Type) = findAt(this, (span.first + pos)..span.last, type)
+    fun findAtRelative(span: IntRange, type: Type) = findAt(this, (span.first + pos)..(span.last + pos), type)
 
     fun findAtRelative(loc: RelativeNodeLoc<Type>) = findAtRelative(loc.pos, loc.type)
 
@@ -112,9 +111,10 @@ private tailrec fun <T : SyntaxType> findAt(node: RedNode<T>, span: IntRange, ty
         val mid = (lowerBound + upperBound) / 2
         val curr = node[mid]
         when {
-            curr.span in span -> return findAt(curr, span, type)
-            curr.span isBefore span -> lowerBound = mid + 1
-            else -> upperBound = mid - 1
+            span in curr.span -> return findAt(curr, span, type)
+            curr.span.last <= span.first -> lowerBound = mid + 1
+            curr.span.first >= span.last -> upperBound = mid - 1
+            else -> break
         }
     }
 

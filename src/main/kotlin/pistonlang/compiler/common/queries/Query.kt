@@ -26,7 +26,7 @@ class Query<K, V>(
 ) {
     private val backing: MutableMap<K, QueryValue<V>> = ConcurrentHashMap<K, QueryValue<V>>()
 
-    operator fun get(key: K): QueryValue<V> {
+    private fun getFull(key: K): QueryValue<V> {
         val version = versionData.current
         val last = backing[key]
 
@@ -39,4 +39,8 @@ class Query<K, V>(
         backing[key] = value
         return value
     }
+
+    fun lastModified(key: K): QueryVersion = getFull(key).modified
+
+    operator fun get(key: K): V = getFull(key).value
 }
