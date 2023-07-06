@@ -55,7 +55,7 @@ sealed interface MemberHandle : ParentHandle, ItemHandle {
 /**
  * A handle for an item which has parameters
  */
-sealed interface ParameterizedHandle : ItemHandle
+sealed interface ParameterizedHandle : MemberHandle
 
 /**
  * A handle for a member which has a type or return type

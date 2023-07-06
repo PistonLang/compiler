@@ -5,10 +5,6 @@ import org.junit.jupiter.api.assertAll
 import pistonlang.compiler.common.files.VirtualPackageTree
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.main.CompilerInstance
-import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.piston.parser.PistonLexer
-import pistonlang.compiler.piston.parser.PistonParsing
 import kotlin.test.assertEquals
 
 class ImportsTest {
@@ -47,8 +43,8 @@ class ImportsTest {
 
     @Test
     fun testImports() {
-        val instance = CompilerInstance(QueryVersionData())
-        val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
+        val instance = defaultInstance()
+        val handler = defaultHandler(instance)
         instance.addHandler(handler)
 
         instance.add(tree.mapValues { it.first })

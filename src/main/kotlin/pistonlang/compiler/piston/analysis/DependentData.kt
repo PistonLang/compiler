@@ -20,3 +20,7 @@ typealias ReturnData = Dependent<PistonType, TypeInstance>
 
 val errorReturnData = ReturnData(emptyList(), errorInstance)
 val unitReturnData = ReturnData(emptyList(), unitInstance)
+
+typealias ParamData = Dependent<PistonType, List<TypeInstance>>
+
+val emptyParamData = ParamData(emptyList(), emptyList())

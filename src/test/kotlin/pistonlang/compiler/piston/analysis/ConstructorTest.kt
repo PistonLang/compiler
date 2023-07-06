@@ -6,11 +6,7 @@ import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.MemberType
 import pistonlang.compiler.common.items.MultiInstanceClassHandle
-import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.common.parser.NodeLocation
-import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.piston.parser.PistonLexer
-import pistonlang.compiler.piston.parser.PistonParsing
 import pistonlang.compiler.piston.parser.PistonType
 import kotlin.test.assertEquals
 
@@ -29,7 +25,7 @@ class ConstructorTest {
                     
                     def foo() = println(t.toString())
                 }
-            """.trimIndent() to listOf(NodeLocation(pos=12..18, PistonType.functionParams))
+            """.trimIndent() to listOf(NodeLocation(pos = 12..18, PistonType.functionParams))
         }
         data("trait.pi") {
             """
@@ -44,9 +40,8 @@ class ConstructorTest {
 
     @Test
     fun testChildItems() {
-        val instance = CompilerInstance(QueryVersionData())
-        val handler =
-            PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
+        val instance = defaultInstance()
+        val handler = defaultHandler(instance)
         instance.addHandler(handler)
 
         instance.add(tree.mapValues { it.first })

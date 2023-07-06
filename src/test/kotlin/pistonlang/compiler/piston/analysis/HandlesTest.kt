@@ -2,12 +2,11 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
-import pistonlang.compiler.common.items.*
-import pistonlang.compiler.common.main.CompilerInstance
+import pistonlang.compiler.common.items.FileHandle
+import pistonlang.compiler.common.items.MemberList
+import pistonlang.compiler.common.items.MemberType
+import pistonlang.compiler.common.items.memberListOf
 import pistonlang.compiler.common.parser.NodeLocation
-import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.piston.parser.PistonLexer
-import pistonlang.compiler.piston.parser.PistonParsing
 import pistonlang.compiler.piston.parser.PistonType
 import kotlin.test.assertEquals
 
@@ -79,8 +78,8 @@ class HandlesTest {
 
     @Test
     fun testHandles() {
-        val instance = CompilerInstance(QueryVersionData())
-        val handler = PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
+        val instance = defaultInstance()
+        val handler = defaultHandler(instance)
         instance.addHandler(handler)
 
         assertAll(expectations.map { (code, expected) ->

@@ -350,6 +350,36 @@ class PistonLanguageHandler(
         }
     }
 
+    val params: Query<ParameterizedHandle, ParamData> = run {
+        val collectFn = fn@{ key: ParameterizedHandle, _: QueryVersion ->
+            val node = nodeFromMemberHandle(key)
+                ?.firstDirectChild(PistonType.functionParams)
+                ?.asRoot()
+                ?: return@fn emptyParamData
+
+            val deps = mutableListOf<HandleData<PistonType>>()
+            val scope = buildTypeParamScopeFor(key)
+
+            val params = node.childSequence
+                .filter { it.type == PistonType.functionParam }
+                .map { it
+                    .firstDirectChild(PistonType.typeAnnotation)
+                    ?.firstDirectChild(PistonSyntaxSets.types)
+                    ?.let { typeNode -> handleTypeNode(typeNode, deps, scope, false) }
+                    ?: errorInstance
+                }
+                .toList()
+
+            ParamData(deps, params)
+        }
+        Query(instance.versionData, collectFn) { key, old, version ->
+            if (ast.lastModified(key.findFile()) <= old.checked) return@Query old.copy(checked = version)
+
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
     private fun handleTypeNode(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,

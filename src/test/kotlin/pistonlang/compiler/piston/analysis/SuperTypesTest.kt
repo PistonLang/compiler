@@ -4,11 +4,7 @@ import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.*
-import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.common.parser.NodeLocation
-import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.piston.parser.PistonLexer
-import pistonlang.compiler.piston.parser.PistonParsing
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.nonEmptyListOf
 import kotlin.test.assertEquals
@@ -95,9 +91,8 @@ class SuperTypesTest {
 
     @Test
     fun testChildItems() {
-        val instance = CompilerInstance(QueryVersionData())
-        val handler =
-            PistonLanguageHandler(::PistonLexer, PistonParsing::parseFile, instance)
+        val instance = defaultInstance()
+        val handler = defaultHandler(instance)
         instance.addHandler(handler)
 
         instance.add(tree)
