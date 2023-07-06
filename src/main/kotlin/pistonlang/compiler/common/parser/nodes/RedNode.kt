@@ -145,4 +145,4 @@ inline fun <Type> RedNode<Type>.lastDirectChildOr(
     fn: () -> RedNode<Type>
 ) where Type : SyntaxType, Type : Enum<Type> = this.lastDirectChild(set) ?: fn()
 
-fun <T : SyntaxType> GreenNode<T>.asRedRoot() = RedNode(null, this, 0)
+fun <T : SyntaxType> GreenNode<T>.asRoot() = RedNode(null, this, 0)

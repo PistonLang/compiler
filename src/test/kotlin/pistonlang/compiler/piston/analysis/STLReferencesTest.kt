@@ -41,7 +41,7 @@ class STLReferencesTest {
 
         instance.add(stlTree)
         val res = stlItems.asSequence().fold(StringBuilder()) { builder, (_, ref) ->
-            builder.appendLine("${ref.name}: ${handler.nodeFromMemberHandle(ref)?.location}")
+            builder.appendLine("${ref.name}: ${handler.parentRelativeLocation(ref)}")
         }.dropLast(1).toString()
         assertEquals(expected, res)
     }
