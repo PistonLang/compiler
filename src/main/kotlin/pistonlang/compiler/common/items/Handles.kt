@@ -187,9 +187,7 @@ data class TypeParamHandle(
 /**
  * This handle is used for representing an error in places when a reference would be expected
  */
-object ErrorHandle : ItemHandle, TypeHandle {
+data object ErrorHandle : ItemHandle, TypeHandle {
     override val itemType: ItemType
         get() = ItemType.Null
-
-    override fun toString() = "ErrorHandle"
 }

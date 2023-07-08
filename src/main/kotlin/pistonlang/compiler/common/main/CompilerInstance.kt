@@ -26,31 +26,30 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    private val fileHandler: Query<FileHandle, LanguageHandler<*>?> = run {
+    private val fileHandler: DependentQuery<FileHandle, LanguageHandler<*>?> = run {
         val handleFun = { key: FileHandle, _: QueryVersion ->
             val ext = key.path.substringAfterLast('.')
             handlers[ext]
         }
-        Query(versionData, handleFun) { _, old, version ->
+        DependentQuery(versionData, handleFun) { _, old, version ->
             old.copy(checked = version)
         }
     }
 
-    val filePackage: Query<FileHandle, PackageHandle> = run {
+    val filePackage: DependentQuery<FileHandle, PackageHandle> = run {
         val packFun = { key: FileHandle, _: QueryVersion ->
             val ops = options[Unit]
-            val path = key.path.removePrefix(ops.value.startPath).split('/').dropLast(1)
+            val path = key.path.removePrefix(ops.startPath).split('/').dropLast(1)
             PackageHandle(path)
         }
-        Query(versionData, packFun) { key, old, version ->
-            val ops = options[Unit]
-            if (ops.modified <= old.checked) old.copy(checked = version)
+        DependentQuery(versionData, packFun) { key, old, version ->
+            if (options.lastModified(Unit)<= old.checked) old.copy(checked = version)
             else packFun(key, version).toQueryValue(version)
         }
     }
 
     // TODO: Handle option changes
-    val packageTree: Query<Unit, PackageTree> = run {
+    val packageTree: DependentQuery<Unit, PackageTree> = run {
         val default = { _: Unit, version: QueryVersion ->
             var tree = PackageTree(PackageHandle(emptyList()), version)
             while (changes.isNotEmpty()) {
@@ -58,7 +57,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
             }
             tree
         }
-        Query(versionData, default) { _, old, version ->
+        DependentQuery(versionData, default) { _, old, version ->
             var tree = old.value
             while (changes.isNotEmpty() && changes.peek().version <= version) {
                 tree = applyFileChange(tree, changes.poll())
@@ -79,7 +78,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
         }
     }
 
-    val packageItems: Query<PackageHandle, Map<String, List<ItemHandle>>> = run {
+    val packageItems: DependentQuery<PackageHandle, Map<String, List<ItemHandle>>> = run {
         val collectFn = fn@{ key: PackageHandle, _: QueryVersion ->
             val node = packageTree[Unit].nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
@@ -91,7 +90,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
             node.files.forEach { file ->
                 val handler = fileHandler[file] ?: return@forEach
                 handler.fileItems[file].forEach { (name, list) ->
-                    MemberType.values().forEach { type ->
+                    MemberType.entries.forEach { type ->
                         list.iteratorFor(type).withIndex().forEach { (index, _) ->
                             res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(file, name, index))
                         }
@@ -100,18 +99,18 @@ class CompilerInstance(val versionData: QueryVersionData) {
             }
             res
         }
-        Query(versionData, collectFn) { key, old, version ->
+        DependentQuery(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
         }
     }
 
-    val childItems: Query<MemberHandle, Map<String, List<ItemHandle>>> = run {
+    val childItems: DependentQuery<MemberHandle, Map<String, List<ItemHandle>>> = run {
         val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
             val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<ItemHandle>>()
             handler.childItems[key].forEach { (name, list) ->
-                MemberType.values().forEach { type ->
+                MemberType.entries.forEach { type ->
                     list.iteratorFor(type).withIndex().forEach { (index, _) ->
                         res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(key, name, index))
                     }
@@ -119,31 +118,31 @@ class CompilerInstance(val versionData: QueryVersionData) {
             }
             res
         }
-        Query(versionData, collectFn) { key, old, version ->
+        DependentQuery(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
         }
     }
 
-    val typeParams: Query<MemberHandle, Map<String, List<TypeParamHandle>>> = run {
+    val typeParams: DependentQuery<MemberHandle, Map<String, List<TypeParamHandle>>> = run {
         val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
             val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<TypeParamHandle>>()
             handler.typeParams[key].withIndex().groupBy({ it.value.first }) {
                 TypeParamHandle(key, it.index)
             }
         }
-        Query(versionData, collectFn) { key, old, version ->
+        DependentQuery(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
         }
     }
 
-    val constructors: Query<MultiInstanceClassHandle, List<ConstructorHandle>> = run {
+    val constructors: DependentQuery<MultiInstanceClassHandle, List<ConstructorHandle>> = run {
         val collectFn = fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
             val handler = fileHandler[key.findFile()] ?: return@fn emptyList<ConstructorHandle>()
             handler.constructors[key].indices.map { ConstructorHandle(key, it) }
         }
-        Query(versionData, collectFn) { key, old, version ->
+        DependentQuery(versionData, collectFn) { key, old, version ->
             val new = collectFn(key, version)
             if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
         }
@@ -158,7 +157,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     fun removeFile(ref: FileHandle) {
         if (!code.contains(ref)) return
 
-        val current = code[ref].value
+        val current = code[ref]
         if (current.valid) {
             val newVersion = code.set(ref, current.copy(valid = false)).modified
             changes.offer(FileChange(ref, ChangeType.Removal, newVersion))

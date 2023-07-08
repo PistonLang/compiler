@@ -443,6 +443,70 @@ File@0
         ├─Dot@120
         └─PathSegment@121
           └─Identifier(d)@121
+        """.trimIndent(),
+        "def func[A where A <: Int32](a: A, b: Int32): Int32 = a + b" to """
+File@0
+└─FunctionDef@0
+  ├─DefKw@0
+  ├─Whitespace( )@3
+  ├─Identifier(func)@4
+  ├─TypeParams@8
+  │ ├─LBracket@8
+  │ ├─Identifier(A)@9
+  │ ├─Whitespace( )@10
+  │ ├─TypeGuard@11
+  │ │ ├─WhereKw@11
+  │ │ ├─Whitespace( )@16
+  │ │ └─TypeBound@17
+  │ │   ├─Identifier(A)@17
+  │ │   ├─Whitespace( )@18
+  │ │   ├─Subtype@19
+  │ │   ├─Whitespace( )@21
+  │ │   └─PathType@22
+  │ │     └─PathSegment@22
+  │ │       └─Identifier(Int32)@22
+  │ └─RBracket@27
+  ├─FunctionParams@28
+  │ ├─LParen@28
+  │ ├─FunctionParam@29
+  │ │ ├─Identifier(a)@29
+  │ │ └─TypeAnnotation@30
+  │ │   ├─Colon@30
+  │ │   ├─Whitespace( )@31
+  │ │   └─PathType@32
+  │ │     └─PathSegment@32
+  │ │       └─Identifier(A)@32
+  │ ├─Comma@33
+  │ ├─Whitespace( )@34
+  │ ├─FunctionParam@35
+  │ │ ├─Identifier(b)@35
+  │ │ └─TypeAnnotation@36
+  │ │   ├─Colon@36
+  │ │   ├─Whitespace( )@37
+  │ │   └─PathType@38
+  │ │     └─PathSegment@38
+  │ │       └─Identifier(Int32)@38
+  │ └─RParen@43
+  ├─TypeAnnotation@44
+  │ ├─Colon@44
+  │ ├─Whitespace( )@45
+  │ └─PathType@46
+  │   └─PathSegment@46
+  │     └─Identifier(Int32)@46
+  ├─Whitespace( )@51
+  └─ExpressionBody@52
+    ├─Eq@52
+    ├─Whitespace( )@53
+    └─PlusExpression@54
+      ├─IdentifierExpression@54
+      │ └─PathSegment@54
+      │   └─Identifier(a)@54
+      ├─Whitespace( )@55
+      ├─Plus@56
+      ├─Whitespace( )@57
+      └─IdentifierExpression@58
+        └─PathSegment@58
+          └─Identifier(b)@58
         """.trimIndent()
     )
 

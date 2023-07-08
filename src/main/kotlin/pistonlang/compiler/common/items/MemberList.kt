@@ -24,7 +24,7 @@ value class MemberList<Type : SyntaxType> internal constructor(private val list:
 
 @JvmInline
 value class MutableMemberList<Type : SyntaxType> private constructor(private val list: MutableList<MutableList<RelativeNodeLoc<Type>>>) {
-    constructor() : this(MutableList(MemberType.values().size) { arrayListOf() })
+    constructor() : this(MutableList(MemberType.entries.size) { arrayListOf() })
 
     fun add(type: MemberType, reference: RelativeNodeLoc<Type>) {
         list[type.ordinal].add(reference)

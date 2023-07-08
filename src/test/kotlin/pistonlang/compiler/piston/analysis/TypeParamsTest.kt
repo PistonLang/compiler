@@ -46,7 +46,7 @@ class TypeParamsTest {
             {
                 val expected = data.second
                 handler.fileItems[file].forEach { (name, list) ->
-                    MemberType.values().forEach inner@{ type ->
+                    MemberType.entries.forEach inner@{ type ->
                         if (!list.iteratorFor(type).hasNext()) return@inner
 
                         val ref = type.buildHandle(file, name, 0)

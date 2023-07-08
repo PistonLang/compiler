@@ -7,23 +7,34 @@ data class QueryValue<V>(val modified: QueryVersion, val checked: QueryVersion, 
 
 fun <T> T.toQueryValue(version: QueryVersion) = QueryValue(version, version, this)
 
-class InputQuery<K, V>(private val versionData: QueryVersionData, private val default: () -> V) {
+interface Query<K, V> {
+    operator fun get(key: K): V
+
+    fun lastModified(key: K): QueryVersion
+
+}
+
+class InputQuery<K, V>(private val versionData: QueryVersionData, private val default: () -> V): Query<K, V> {
     private val backing: MutableMap<K, InputQueryValue<V>> = ConcurrentHashMap<K, InputQueryValue<V>>()
 
     operator fun contains(key: K) = backing.contains(key)
 
-    operator fun get(key: K): InputQueryValue<V> = backing
+    private fun getFull(key: K): InputQueryValue<V> = backing
         .getOrPut(key) { InputQueryValue(versionData.current, default()) }
+
+    override fun get(key: K): V = getFull(key).value
+
+    override fun lastModified(key: K): QueryVersion = getFull(key).modified
 
     operator fun set(key: K, value: V): InputQueryValue<V> =
         InputQueryValue(versionData.update(), value).also { backing[key] = it }
 }
 
-class Query<K, V>(
+class DependentQuery<K, V>(
     private val versionData: QueryVersionData,
     private val fn: (K, QueryVersion) -> V,
     private val update: (K, QueryValue<V>, QueryVersion) -> QueryValue<V>
-) {
+): Query<K, V> {
     private val backing: MutableMap<K, QueryValue<V>> = ConcurrentHashMap<K, QueryValue<V>>()
 
     private fun getFull(key: K): QueryValue<V> {
@@ -40,7 +51,7 @@ class Query<K, V>(
         return value
     }
 
-    fun lastModified(key: K): QueryVersion = getFull(key).modified
+    override fun lastModified(key: K): QueryVersion = getFull(key).modified
 
-    operator fun get(key: K): V = getFull(key).value
+    override fun get(key: K): V = getFull(key).value
 }
