@@ -2,6 +2,7 @@ package pistonlang.compiler.piston.analysis
 
 import pistonlang.compiler.common.items.Dependent
 import pistonlang.compiler.common.items.TypeInstance
+import pistonlang.compiler.common.items.TypeParamHandle
 import pistonlang.compiler.common.items.errorInstance
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.NonEmptyList
@@ -24,3 +25,7 @@ val unitReturnData = ReturnData(emptyList(), unitInstance)
 typealias ParamData = Dependent<PistonType, List<TypeInstance>>
 
 val emptyParamData = ParamData(emptyList(), emptyList())
+
+typealias TypeBoundData = Dependent<PistonType, List<List<TypeInstance>>>
+
+val emptyTypeBoundData = TypeBoundData(emptyList(), emptyList())

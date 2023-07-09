@@ -411,6 +411,47 @@ class PistonLanguageHandler(
         }
     }
 
+    val typeParamBounds: DependentQuery<MemberHandle, TypeBoundData> = run {
+        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+            val params = instance.typeParams[key]
+            if (params.isEmpty()) return@fn emptyTypeBoundData
+            val node = astNode[key]!!
+                .firstDirectRawChild(PistonType.typeParams)!!
+                .firstDirectRawChildOr(PistonType.typeGuard) {
+                    return@fn TypeBoundData(emptyList(), List(params.size) { emptyList<TypeInstance>() })
+                }
+                .asRoot()
+
+            val deps = mutableListOf<HandleData<PistonType>>()
+            val scope = buildTypeParamScopeFor(key)
+
+            val res = MutableList(params.size) { mutableListOf<TypeInstance>() }
+
+            val bounds = node.childSequence
+                .filter { it.type == PistonType.typeBound }
+                .forEach { bound ->
+                    // TODO: Handle errors
+                    val ident = bound.firstDirectChild(PistonType.identifier) ?: return@forEach
+                    val name = ident.content
+                    val param = params[name]?.first() ?: return@forEach
+                    deps.add(HandleData(ident.location, nonEmptyListOf(param)))
+                    val typeNode = bound.firstDirectChild(PistonSyntaxSets.types)
+                    val instance =
+                        if (typeNode == null) errorInstance
+                        else handleTypeNode(typeNode, deps, scope, false)
+                    res[param.id].add(instance)
+                }
+
+            TypeBoundData(deps, res)
+        }
+        DependentQuery(instance.versionData, collectFn) { key, old, version ->
+            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
+
+            val new = collectFn(key, version)
+            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
+        }
+    }
+
     private fun handleTypeNode(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
