@@ -1,5 +1,6 @@
 package pistonlang.compiler.common.queries
 
+import pistonlang.compiler.util.VoidList
 import pistonlang.compiler.util.contextMember
 import java.util.concurrent.ConcurrentHashMap
 
@@ -58,8 +59,9 @@ class InputQuery<in K, V>(private val versionData: QueryVersionData, private val
 class DependentQuery<in K, out V>(
     private val versionData: QueryVersionData,
     private val checkEquality: Boolean = true,
-    private val cycleHandler: (K, QueryVersion) -> V = { _, _ -> error("Unexpected cycle") },
-    private val fn: QueryAccessor.(K, QueryVersion) -> V,
+    private val cycleHandler: (K) -> V = { error("Unexpected cycle") },
+    private val updateFn: (QueryAccessor.(K, V) -> V)? = null,
+    private val fn: QueryAccessor.(K) -> V,
 ) : Query<K, V> {
     private val backing: MutableMap<K, DependentQueryValue<V>> = ConcurrentHashMap<K, DependentQueryValue<V>>()
 
@@ -70,21 +72,26 @@ class DependentQuery<in K, out V>(
         val value = when {
             last == null -> {
                 val deps = mutableListOf<QueryKey<*, *>>()
-                val newValue = accessor.access(QueryKey(this, key), deps, { cycleHandler(key, version) }) {
-                    fn(key, version)
+                val newValue = accessor.access(QueryKey(this, key), deps, { cycleHandler(key) }) {
+                    fn(key)
                 }
-                DependentQueryValue(version, version, newValue, deps)
+                DependentQueryValue(modified = version, checked = version, newValue, deps)
             }
 
-            last.checked >= version || with(accessor) { last.dependencies.all { it.lastModified() <= last.checked } } ->
+            last.checked >= version || (last.dependencies.isNotEmpty() && accessor.access(QueryKey(this, key), VoidList, { false }) { last.dependencies.all { it.lastModified() <= last.checked } }) ->
                 return last
 
             else -> {
                 val deps = mutableListOf<QueryKey<*, *>>()
-                val newValue = accessor.access(QueryKey(this, key), deps, { cycleHandler(key, version) }) {
-                    fn(key, version)
+                val newValue = accessor.access(QueryKey(this, key), deps, { cycleHandler(key) }) {
+                    updateFn?.let { it(key, last.value) } ?: fn(key)
                 }
-                DependentQueryValue(if (checkEquality && newValue == last.value) last.modified else version, version, newValue, deps)
+                DependentQueryValue(
+                    modified = if (checkEquality && newValue == last.value) last.modified else version,
+                    checked = version,
+                    value = newValue,
+                    dependencies = deps
+                )
             }
         }
 
@@ -111,11 +118,11 @@ data class QueryKey<K, out V>(val query: Query<K, V>, val key: K) {
 
 class QueryAccessor internal constructor(
     internal val running: MutableSet<QueryKey<*, *>>,
-    private val dependencies: MutableList<QueryKey<*, *>>
+    private val dependencies: MutableList<in QueryKey<*, *>>
 ) {
     internal inline fun <T> access(
         key: QueryKey<*, *>,
-        deps: MutableList<QueryKey<*, *>>,
+        deps: MutableList<in QueryKey<*, *>>,
         onError: () -> T,
         onSuccess: QueryAccessor.() -> T
     ): T {

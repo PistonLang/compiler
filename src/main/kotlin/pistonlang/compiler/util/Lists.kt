@@ -1,7 +1,7 @@
 package pistonlang.compiler.util
 
 @JvmInline
-value class NonEmptyList<out T> internal constructor(private val nested: List<T>): Iterable<T> {
+value class NonEmptyList<out T> internal constructor(private val nested: List<T>) : Iterable<T> {
     override fun iterator(): Iterator<T> = nested.iterator()
 
     operator fun get(index: Int): T = nested[index]
@@ -12,11 +12,6 @@ fun <T> List<T>.assertNonEmpty(): NonEmptyList<T> =
     else NonEmptyList(this)
 
 fun <T> nonEmptyListOf(first: T) = NonEmptyList(listOf(first))
-fun <T> nonEmptyListOf(first: T, vararg rest: T) = NonEmptyList(listOf(first, *rest))
-
-
-@Suppress("UNCHECKED_CAST")
-fun <T> voidList(): MutableList<T> = VoidList as MutableList<T>
 
 data object VoidList : MutableList<Any> {
     override val size: Int

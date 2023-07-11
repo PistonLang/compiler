@@ -12,43 +12,53 @@ import pistonlang.compiler.common.queries.QueryVersion
 import pistonlang.compiler.common.queries.QueryVersionData
 import java.util.*
 
-class GeneralQueries(versionData: QueryVersionData, handlers: Map<String, LanguageHandler<*>>, changes: Queue<FileChange>) {
+class GeneralQueries(
+    versionData: QueryVersionData,
+    handlers: Map<String, LanguageHandler<*>>,
+    changes: Queue<FileChange>
+) {
     val code: CodeQuery = CodeQuery(versionData) { FileData(false, "") }
     private val options: OptionsQuery = OptionsQuery(versionData) { CompilerOptions("") }
 
     private val fileHandler: DependentQuery<FileHandle, LanguageHandler<*>?> =
-        DependentQuery(versionData) { key: FileHandle, _: QueryVersion ->
+        DependentQuery(versionData) { key: FileHandle ->
             val ext = key.path.substringAfterLast('.')
             handlers[ext]
         }
 
     val filePackage: DependentQuery<FileHandle, PackageHandle> =
-        DependentQuery(versionData) { key: FileHandle, _: QueryVersion ->
+        DependentQuery(versionData) { key: FileHandle ->
             val ops = options[Unit]
             val path = key.path.removePrefix(ops.startPath).split('/').dropLast(1)
             PackageHandle(path)
         }
 
-    val packageTree: DependentQuery<Unit, PackageTree> = DependentQuery(versionData) { _: Unit, version: QueryVersion ->
-        var tree = PackageTree(PackageHandle(emptyList()), version)
-        while (changes.isNotEmpty()) {
+    val packageTree: DependentQuery<Unit, PackageTree> = DependentQuery(versionData, updateFn = { _, oldValue ->
+        updatePackageTree(oldValue, changes)
+    }) { _: Unit ->
+        updatePackageTree(PackageTree(rootPackage, QueryVersion(0)), changes)
+    }
+
+    context(QueryAccessor)
+    private tailrec fun updatePackageTree(tree: PackageTree, changes: Queue<FileChange>): PackageTree =
+        if (changes.isEmpty()) tree else {
             val change = changes.poll()
             val pack = filePackage[change.file]
 
-            tree = when (change.type) {
+            val newTree = when (change.type) {
                 ChangeType.Addition -> tree.add(pack, change.file, change.version)
 
                 ChangeType.Update -> tree.update(pack, change.file, change.version)
 
                 ChangeType.Removal -> tree.remove(pack, change.file, change.version)
             }
+
+            updatePackageTree(newTree, changes)
         }
-        tree
-    }
 
 
     val packageItems: DependentQuery<PackageHandle, Map<String, List<ItemHandle>>> =
-        DependentQuery(versionData) fn@{ key: PackageHandle, _: QueryVersion ->
+        DependentQuery(versionData) fn@{ key: PackageHandle ->
             val node = packageTree[Unit].nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
             node.children.forEach { (name, node) ->
@@ -70,7 +80,7 @@ class GeneralQueries(versionData: QueryVersionData, handlers: Map<String, Langua
         }
 
     val childItems: DependentQuery<MemberHandle, Map<String, List<ItemHandle>>> =
-        DependentQuery(versionData) fn@{ key: MemberHandle, _: QueryVersion ->
+        DependentQuery(versionData) fn@{ key: MemberHandle ->
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
             val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<ItemHandle>>()
             handler.childItems[key].forEach { (name, list) ->
@@ -84,7 +94,7 @@ class GeneralQueries(versionData: QueryVersionData, handlers: Map<String, Langua
         }
 
     val typeParams: DependentQuery<MemberHandle, Map<String, List<TypeParamHandle>>> =
-        DependentQuery(versionData) fn@{ key: MemberHandle, _: QueryVersion ->
+        DependentQuery(versionData) fn@{ key: MemberHandle ->
             val handler = fileHandler[key.findFile()] ?: return@fn emptyMap<String, List<TypeParamHandle>>()
             handler.typeParams[key].withIndex().groupBy({ it.value.first }) {
                 TypeParamHandle(key, it.index)
@@ -92,7 +102,7 @@ class GeneralQueries(versionData: QueryVersionData, handlers: Map<String, Langua
         }
 
     val constructors: DependentQuery<MultiInstanceClassHandle, List<ConstructorHandle>> =
-        DependentQuery(versionData) fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
+        DependentQuery(versionData) fn@{ key: MultiInstanceClassHandle ->
             val handler = fileHandler[key.findFile()] ?: return@fn emptyList<ConstructorHandle>()
             handler.constructors[key].indices.map { ConstructorHandle(key, it) }
         }

@@ -9,14 +9,14 @@ import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.queries.InputQuery
 import pistonlang.compiler.common.queries.QueryAccessor
 import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.util.voidList
+import pistonlang.compiler.util.VoidList
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 typealias CodeQuery = InputQuery<FileHandle, FileData>
 typealias OptionsQuery = InputQuery<Unit, CompilerOptions>
 
-class CompilerInstance(val versionData: QueryVersionData) {
+class CompilerInstance(private val versionData: QueryVersionData) {
     private val handlers: MutableMap<String, LanguageHandler<*>> = hashMapOf()
     private val changes: Queue<FileChange> = ConcurrentLinkedQueue()
     private val queries = GeneralQueries(versionData, handlers, changes)
@@ -30,7 +30,7 @@ class CompilerInstance(val versionData: QueryVersionData) {
     }
 
     fun <T> access(fn: context(QueryAccessor) (GeneralQueries) -> T) =
-        fn(QueryAccessor(hashSetOf(), voidList()), queries)
+        fn(QueryAccessor(hashSetOf(), VoidList), queries)
 
     fun addFile(ref: FileHandle, code: String) {
         val type = if (queries.code.contains(ref)) ChangeType.Update else ChangeType.Addition
