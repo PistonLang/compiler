@@ -38,21 +38,22 @@ class ChildItemsTest {
     @Test
     fun testChildItems() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree.mapValues { it.first })
-        assertAll(tree.map { (file, data) ->
-            {
-                val expected = data.second
-                handler.fileItems[file].forEach { (name, list) ->
-                    MemberType.entries.forEach inner@{ type ->
-                        if (!list.iteratorFor(type).hasNext()) return@inner
-                        val ref = type.buildHandle(file, name, 0)
-                        assertEquals(expected, handler.childItems[ref].toString())
+        instance.access {
+            assertAll(tree.map { (file, data) ->
+                {
+                    val expected = data.second
+                    handler.fileItems[file].forEach { (name, list) ->
+                        MemberType.entries.forEach inner@{ type ->
+                            if (!list.iteratorFor(type).hasNext()) return@inner
+                            val ref = type.buildHandle(file, name, 0)
+                            assertEquals(expected, handler.childItems[ref].toString())
+                        }
                     }
                 }
-            }
-        })
+            })
+        }
     }
 }

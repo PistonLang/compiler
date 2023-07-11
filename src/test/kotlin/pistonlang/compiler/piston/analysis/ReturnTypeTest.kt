@@ -143,16 +143,17 @@ class ReturnTypeTest {
     @Test
     fun testChildItems() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree)
-        val value = rootPackage
-            .hierarchyIterator(instance)
-            .asSequence()
-            .filterIsInstance<TypedHandle>()
-            .map { it to handler.returnType[it] }
-            .toList()
+        val value = instance.access { queries ->
+            rootPackage
+                .hierarchyIterator(queries)
+                .asSequence()
+                .filterIsInstance<TypedHandle>()
+                .map { it to handler.returnType[it] }
+                .toList()
+        }
 
         assertEquals(expected, value)
     }

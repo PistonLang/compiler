@@ -3,14 +3,15 @@ package pistonlang.compiler.piston.analysis
 import pistonlang.compiler.common.files.PackageTree
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.language.LanguageHandler
-import pistonlang.compiler.common.main.CompilerInstance
+import pistonlang.compiler.common.main.GeneralQueries
 import pistonlang.compiler.common.parser.Lexer
 import pistonlang.compiler.common.parser.Parser
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.*
 import pistonlang.compiler.common.queries.DependentQuery
+import pistonlang.compiler.common.queries.QueryAccessor
 import pistonlang.compiler.common.queries.QueryVersion
-import pistonlang.compiler.common.queries.toQueryValue
+import pistonlang.compiler.common.queries.QueryVersionData
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.assertNonEmpty
@@ -25,47 +26,38 @@ val emptyNode = GreenLeaf(PistonType.file, "")
 class PistonLanguageHandler(
     lexer: (String) -> Lexer<PistonType>,
     parsing: (Parser<PistonType>) -> GreenNode<PistonType>,
-    private val instance: CompilerInstance,
+    versionData: QueryVersionData,
+    private val generalQueries: GeneralQueries,
 ) : LanguageHandler<PistonType> {
     override val extensions: List<String> = listOf("pi")
 
-    override val ast: DependentQuery<FileHandle, GreenNode<PistonType>> = run {
-        val parseFn = { key: FileHandle, _: QueryVersion ->
-            val data = instance.code[key]
+    override val ast: DependentQuery<FileHandle, GreenNode<PistonType>> =
+        DependentQuery(versionData) { key: FileHandle, _: QueryVersion ->
+            val data = generalQueries.code[key]
             if (!data.valid) emptyNode else {
                 val parser = Parser(lexer(data.code), PistonType.file)
                 parsing(parser)
             }
         }
-        DependentQuery(instance.versionData, parseFn) { key, old, version ->
-            if (instance.code.lastModified(key) <= old.checked) old.copy(checked = version)
-            else parseFn(key, version).toQueryValue(version)
+
+    context(QueryAccessor)
+    private fun getASTNode( key: MemberHandle, version: QueryVersion):  GreenNode<PistonType>? {
+        val parent = key.parent
+        return if (parent.isFile) {
+            val node = ast[parent as FileHandle]
+            val pos = fileItems[parent][key.name]?.get(key.memberType, key.id) ?: return null
+            node.asRoot().findAtRelative(pos)?.green
+        } else {
+            val node = astNode[parent as MemberHandle] ?: return null
+            val pos = childItems[parent][key.name]?.get(key.memberType, key.id) ?: return null
+            node.asRoot().findAtRelative(pos)?.green
         }
     }
 
-    private val astNode: DependentQuery<MemberHandle, GreenNode<PistonType>?> = run {
-        val findFn = fn@{ key: MemberHandle, _: QueryVersion ->
-            val parent = key.parent
-            if (parent.isFile) {
-                val node = ast[parent as FileHandle]
-                val pos = fileItems[parent][key.name]?.get(key.memberType, key.id) ?: return@fn null
-                node.asRoot().findAtRelative(pos)?.green
-            } else {
-                val node = astNode[parent as MemberHandle] ?: return@fn null
-                val pos = childItems[parent][key.name]?.get(key.memberType, key.id) ?: return@fn null
-                node.asRoot().findAtRelative(pos)?.green
-            }
-        }
-        DependentQuery(instance.versionData, findFn) { key, old, version ->
-            val parent = key.parent
-            val parentModified =
-                if (parent.isFile) ast.lastModified(parent as FileHandle)
-                else astNode.lastModified(parent as MemberHandle)
-            if (parentModified <= old.checked) old.copy(modified = version)
-            else findFn(key, version).toQueryValue(version)
-        }
-    }
+    private val astNode: DependentQuery<MemberHandle, GreenNode<PistonType>?> =
+        DependentQuery(versionData, fn = ::getASTNode)
 
+    context(QueryAccessor)
     fun parentRelativeLocation(handle: MemberHandle): RelativeNodeLoc<PistonType>? {
         val parent = handle.parent
         return if (parent.isFile) {
@@ -75,8 +67,8 @@ class PistonLanguageHandler(
         }
     }
 
-    override val fileItems: DependentQuery<FileHandle, Map<String, MemberList<PistonType>>> = run {
-        val collectFn = { key: FileHandle, _: QueryVersion ->
+    override val fileItems: DependentQuery<FileHandle, Map<String, MemberList<PistonType>>> =
+        DependentQuery(versionData) { key: FileHandle, _: QueryVersion ->
             val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
             ast[key].childSequence
@@ -85,16 +77,9 @@ class PistonLanguageHandler(
 
             res.mapValues { (_, list) -> list.toImmutable() }
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    override val childItems: DependentQuery<MemberHandle, Map<String, MemberList<PistonType>>> = run {
-        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+    override val childItems: DependentQuery<MemberHandle, Map<String, MemberList<PistonType>>> =
+        DependentQuery(versionData) fn@{ key: MemberHandle, _: QueryVersion ->
             val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
             val node = (astNode[key] ?: return@fn emptyMap<String, MemberList<PistonType>>()).asRoot()
@@ -107,16 +92,9 @@ class PistonLanguageHandler(
 
             res.mapValues { (_, list) -> list.toImmutable() }
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    override val typeParams: DependentQuery<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> = run {
-        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
+    override val typeParams: DependentQuery<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> =
+        DependentQuery(versionData) fn@{ key: MemberHandle, _: QueryVersion ->
             (astNode[key] ?: return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>())
                 .firstDirectRawChildOr(PistonType.typeParams) { return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>() }
                 .asRoot().childSequence
@@ -124,16 +102,9 @@ class PistonLanguageHandler(
                 .map { it.content to it.location }
                 .toList()
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    val fileImportData: DependentQuery<FileHandle, ImportData> = run {
-        val collectFn = fn@{ key: FileHandle, _: QueryVersion ->
+    val fileImportData: DependentQuery<FileHandle, ImportData> =
+        DependentQuery(versionData) fn@{ key: FileHandle, _: QueryVersion ->
             val fileAst = ast[key]
 
             val importNode = fileAst
@@ -141,19 +112,15 @@ class PistonLanguageHandler(
                 .firstDirectRawChildOr(PistonType.importGroup) { return@fn emptyImportData }
                 .asRoot()
 
-            val tree = instance.packageTree[Unit]
+            val tree = generalQueries.packageTree[Unit]
             val deps = mutableListOf<HandleData<PistonType>>()
             val nameMap = hashMapOf<String, MutableList<Int>>()
             handleImportGroup(tree, importNode, deps, nameMap)
 
             ImportData(deps, nameMap)
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
 
+    context(QueryAccessor)
     private fun handleImportGroup(
         pack: PackageTree?,
         node: RedNode<PistonType>,
@@ -163,6 +130,7 @@ class PistonLanguageHandler(
         .filter { it.type == PistonType.importSegment }
         .forEach { segment -> handleImportSegment(pack, segment, deps, nameMap) }
 
+    context(QueryAccessor)
     private fun handleImportSegment(
         pack: PackageTree?,
         node: RedNode<PistonType>,
@@ -206,6 +174,7 @@ class PistonLanguageHandler(
         return subpackage
     }
 
+    context(QueryAccessor)
     private fun handleDirectImportPath(
         pack: PackageTree?,
         node: RedNode<PistonType>,
@@ -232,7 +201,7 @@ class PistonLanguageHandler(
         }
 
         val newName = identNode.content
-        val handleList = instance.packageItems[currPackage.handle][newName]
+        val handleList = generalQueries.packageItems[currPackage.handle][newName]
         val handles = handleList?.assertNonEmpty() ?: nullReferenceList
         deps.add(HandleData(identNode.location, handles))
         nameMap.getOrPut(newName) { mutableListOf() }.add(index)
@@ -319,22 +288,15 @@ class PistonLanguageHandler(
         res.getOrPut(name) { MutableMemberList() }.add(type, loc)
     }
 
-    override val constructors: DependentQuery<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> = run {
-        val collectFn = fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
+    override val constructors: DependentQuery<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> =
+        DependentQuery(versionData) fn@{ key: MultiInstanceClassHandle, _: QueryVersion ->
             (astNode[key] ?: return@fn emptyList<RelativeNodeLoc<PistonType>>())
                 .firstDirectChildOr(PistonType.functionParams) { return@fn emptyList<RelativeNodeLoc<PistonType>>() }
                 .let { listOf(it.parentRelativeLocation) }
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    val supertypes: DependentQuery<NewTypeHandle, SupertypeData> = run {
-        val collectFn = fn@{ key: NewTypeHandle, _: QueryVersion ->
+    val supertypes: DependentQuery<NewTypeHandle, SupertypeData> =
+        DependentQuery(versionData) fn@{ key: NewTypeHandle, _: QueryVersion ->
             val node = (astNode[key] ?: return@fn errorSupertypeData)
                 .firstDirectRawChildOr(PistonType.supertypes) { return@fn emptySuperTypeData }
                 .firstDirectRawChildOr(PistonType.intersectionType) { return@fn errorSupertypeData }
@@ -350,16 +312,9 @@ class PistonLanguageHandler(
 
             if (types.isEmpty()) emptySuperTypeData else SupertypeData(deps, types.assertNonEmpty())
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    val returnType: DependentQuery<TypedHandle, ReturnData> = run {
-        val collectFn = fn@{ key: TypedHandle, _: QueryVersion ->
+    val returnType: DependentQuery<TypedHandle, ReturnData> =
+        DependentQuery(versionData) fn@{ key: TypedHandle, _: QueryVersion ->
             val node = (astNode[key] ?: return@fn errorReturnData)
                 .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn unitReturnData }
                 .firstDirectRawChildOr(PistonSyntaxSets.types) { return@fn errorReturnData }
@@ -372,16 +327,9 @@ class PistonLanguageHandler(
 
             ReturnData(deps, type)
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    val params: DependentQuery<ParameterizedHandle, ParamData> = run {
-        val collectFn = fn@{ key: ParameterizedHandle, _: QueryVersion ->
+    val params: DependentQuery<ParameterizedHandle, ParamData> =
+        DependentQuery(versionData) fn@{ key: ParameterizedHandle, _: QueryVersion ->
             val node = astNode[key]
                 ?.firstDirectRawChild(PistonType.functionParams)
                 ?.asRoot()
@@ -403,17 +351,10 @@ class PistonLanguageHandler(
 
             ParamData(deps, params)
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
-    val typeParamBounds: DependentQuery<MemberHandle, TypeBoundData> = run {
-        val collectFn = fn@{ key: MemberHandle, _: QueryVersion ->
-            val params = instance.typeParams[key]
+    val typeParamBounds: DependentQuery<MemberHandle, TypeBoundData> =
+        DependentQuery(versionData) fn@{ key: MemberHandle, _: QueryVersion ->
+            val params = generalQueries.typeParams[key]
             if (params.isEmpty()) return@fn emptyTypeBoundData
             val node = astNode[key]!!
                 .firstDirectRawChild(PistonType.typeParams)!!
@@ -427,7 +368,7 @@ class PistonLanguageHandler(
 
             val res = MutableList(params.size) { mutableListOf<TypeInstance>() }
 
-            val bounds = node.childSequence
+            node.childSequence
                 .filter { it.type == PistonType.typeBound }
                 .forEach { bound ->
                     // TODO: Handle errors
@@ -444,14 +385,8 @@ class PistonLanguageHandler(
 
             TypeBoundData(deps, res)
         }
-        DependentQuery(instance.versionData, collectFn) { key, old, version ->
-            if (ast.lastModified(key.findFile()) <= old.checked) return@DependentQuery old.copy(checked = version)
 
-            val new = collectFn(key, version)
-            if (new == old.value) old.copy(checked = version) else new.toQueryValue(version)
-        }
-    }
-
+    context(QueryAccessor)
     private fun handleTypeNode(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
@@ -464,6 +399,7 @@ class PistonLanguageHandler(
         else -> error("Error with the types syntax set")
     }
 
+    context(QueryAccessor)
     private fun handlePathType(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
@@ -474,6 +410,7 @@ class PistonLanguageHandler(
         return handleTypePath(path, deps, scope, nullable)
     }
 
+    context(QueryAccessor)
     private fun handleTypePath(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
@@ -504,7 +441,7 @@ class PistonLanguageHandler(
         if (firstPacks.size != 1)
             return errorInstance
 
-        var pack = instance.packageTree[Unit].nodeFor(firstPacks.first() as PackageHandle)!!
+        var pack = generalQueries.packageTree[Unit].nodeFor(firstPacks.first() as PackageHandle)!!
 
         while (level != 1) {
             val identNode = currNode
@@ -519,10 +456,11 @@ class PistonLanguageHandler(
         }
 
         val lastSegment = currNode.firstDirectChild(PistonType.pathSegment) ?: return errorInstance
-        val packScope = StaticScope(null, instance.packageItems[pack.handle])
+        val packScope = StaticScope(null, generalQueries.packageItems[pack.handle])
         return handlePathSegmentType(lastSegment, packScope, deps, nullable)
     }
 
+    context(QueryAccessor)
     private fun handlePathSegmentType(
         node: RedNode<PistonType>,
         scope: Scope,
@@ -551,7 +489,7 @@ class PistonLanguageHandler(
 
         val type = types.first() as TypeHandle
 
-        val expectedArgs = if (type is NewTypeHandle) instance.typeParams[type].size else 0
+        val expectedArgs = if (type is NewTypeHandle) generalQueries.typeParams[type].size else 0
 
         // TODO: Keep track of errors
         val endArgs = when {
@@ -563,6 +501,7 @@ class PistonLanguageHandler(
         return TypeInstance(type, endArgs, nullable)
     }
 
+    context(QueryAccessor)
     private fun handleNestedTypeNode(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
@@ -573,6 +512,7 @@ class PistonLanguageHandler(
         return handleTypeNode(child, deps, scope, nullable)
     }
 
+    context(QueryAccessor)
     private fun handleNullableTypeNode(
         node: RedNode<PistonType>,
         deps: MutableList<HandleData<PistonType>>,
@@ -583,33 +523,37 @@ class PistonLanguageHandler(
     }
 
 
+    context(QueryAccessor)
     private fun buildFileScope(fileHandle: FileHandle): Scope {
-        val pack = instance.filePackage[fileHandle]
-        val packItems = instance.packageItems[pack]
+        val pack = generalQueries.filePackage[fileHandle]
+        val packItems = generalQueries.packageItems[pack]
         val importData = fileImportData[fileHandle]
         val packScope = StaticScope(BaseScope, packItems)
 
         return ImportScope(packScope, importData)
     }
 
+    context(QueryAccessor)
     private fun buildStaticMemberScope(handle: MemberHandle, withTypeParams: Boolean): Scope {
         val parentScope =
             if (withTypeParams) buildTypeParamScopeFor(handle)
             else buildStaticParentScope(handle.parent, false)
-        val items = instance.childItems[handle]
+        val items = generalQueries.childItems[handle]
 
         return StaticTypeScope(parentScope, items)
     }
 
+    context(QueryAccessor)
     private fun buildStaticParentScope(handle: ParentHandle, withTypeParams: Boolean) =
         if (handle.isFile) buildFileScope(handle as FileHandle)
         else buildStaticMemberScope(handle as MemberHandle, withTypeParams)
 
+    context(QueryAccessor)
     private fun buildTypeParamScopeFor(handle: MemberHandle): Scope {
         val parent = handle.parent
 
         val parentScope = buildStaticParentScope(parent, !handle.itemType.type)
-        val typeParams = instance.typeParams[handle]
+        val typeParams = generalQueries.typeParams[handle]
 
         return StaticScope(parentScope, typeParams)
     }

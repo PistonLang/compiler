@@ -36,13 +36,14 @@ class STLReferencesTest {
     @Test
     fun testSTLReferences() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(stlTree)
-        val res = stlItems.asSequence().fold(StringBuilder()) { builder, (_, ref) ->
-            builder.appendLine("${ref.name}: ${handler.parentRelativeLocation(ref)}")
-        }.dropLast(1).toString()
+        val res = instance.access {
+            stlItems.asSequence().fold(StringBuilder()) { builder, (_, ref) ->
+                builder.appendLine("${ref.name}: ${handler.parentRelativeLocation(ref)}")
+            }.dropLast(1).toString()
+        }
         assertEquals(expected, res)
     }
 }

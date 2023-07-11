@@ -92,19 +92,20 @@ class SuperTypesTest {
     @Test
     fun testChildItems() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree)
-        val value = instance
-            .packageItems[PackageHandle(emptyList())]
-            .asSequence()
-            .flatMap { (_, values) ->
-                values
-                    .filter { it.itemType.type }
-                    .map { key -> handler.supertypes[key as NewTypeHandle] }
-            }
-            .toList()
+        val value = instance.access { queries ->
+            queries
+                .packageItems[PackageHandle(emptyList())]
+                .asSequence()
+                .flatMap { (_, values) ->
+                    values
+                        .filter { it.itemType.type }
+                        .map { key -> handler.supertypes[key as NewTypeHandle] }
+                }
+                .toList()
+        }
 
         assertEquals(expected, value)
     }

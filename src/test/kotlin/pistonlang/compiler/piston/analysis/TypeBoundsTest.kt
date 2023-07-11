@@ -61,7 +61,8 @@ class TypeBoundsTest {
                                     parent = FileHandle(path = "classes.pi"),
                                     name = "Foo",
                                     id = 0
-                                ), id = 0
+                                ),
+                                id = 0
                             )
                         )
                     ), HandleData(
@@ -81,7 +82,8 @@ class TypeBoundsTest {
                                     parent = FileHandle(path = "classes.pi"),
                                     name = "Foo",
                                     id = 0
-                                ), id = 0
+                                ),
+                                id = 0
                             )
                         )
                     ), HandleData(
@@ -92,7 +94,8 @@ class TypeBoundsTest {
                                     parent = FileHandle(path = "classes.pi"),
                                     name = "Foo",
                                     id = 0
-                                ), id = 0
+                                ),
+                                id = 0
                             )
                         )
                     ), HandleData(
@@ -103,7 +106,8 @@ class TypeBoundsTest {
                                     parent = FileHandle(path = "classes.pi"),
                                     name = "Foo",
                                     id = 0
-                                ), id = 1
+                                ),
+                                id = 1
                             )
                         )
                     ), HandleData(
@@ -222,7 +226,8 @@ class TypeBoundsTest {
                                             parent = FileHandle(path = "classes.pi"),
                                             name = "foo",
                                             id = 0
-                                        ), id = 0
+                                        ),
+                                        id = 0
                                     ),
                                     args = emptyList(),
                                     nullable = false
@@ -238,15 +243,16 @@ class TypeBoundsTest {
     @Test
     fun testTypeParams() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree)
-        val value = rootPackage
-            .hierarchyIterator(instance)
-            .asSequence()
-            .map { it to handler.typeParamBounds[it] }
-            .toList()
+        val value = instance.access { queries ->
+            rootPackage
+                .hierarchyIterator(queries)
+                .asSequence()
+                .map { it to handler.typeParamBounds[it] }
+                .toList()
+        }
 
         assertEquals(expected, value)
     }

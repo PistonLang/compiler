@@ -44,14 +44,15 @@ class ImportsTest {
     @Test
     fun testImports() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree.mapValues { it.first })
-        assertAll(tree.map { (file, data) ->
-            {
-                assertEquals(data.second, handler.fileImportData[file].toString())
-            }
-        })
+        instance.access {
+            assertAll(tree.map { (file, data) ->
+                {
+                    assertEquals(data.second, handler.fileImportData[file].toString())
+                }
+            })
+        }
     }
 }

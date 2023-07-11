@@ -41,19 +41,20 @@ class ConstructorTest {
     @Test
     fun testChildItems() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree.mapValues { it.first })
-        assertAll(tree.map { (file, data) ->
-            fn@{
-                val expected = data.second
-                handler.fileItems[file].forEach { (name, list) ->
-                    if (!list.iteratorFor(MemberType.MultiInstanceClass).hasNext()) return@fn
-                    val ref = MultiInstanceClassHandle(file, name, 0)
-                    assertEquals(expected, handler.constructors[ref])
+        instance.access {
+            assertAll(tree.map { (file, data) ->
+                fn@{
+                    val expected = data.second
+                    handler.fileItems[file].forEach { (name, list) ->
+                        if (!list.iteratorFor(MemberType.MultiInstanceClass).hasNext()) return@fn
+                        val ref = MultiInstanceClassHandle(file, name, 0)
+                        assertEquals(expected, handler.constructors[ref])
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 }

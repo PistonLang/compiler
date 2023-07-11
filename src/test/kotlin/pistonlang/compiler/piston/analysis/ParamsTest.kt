@@ -84,7 +84,7 @@ class ParamsTest {
                         ),
                         id = 0
                     ),
-                    args = emptyList (),
+                    args = emptyList(),
                     nullable = false
                 )
             )
@@ -171,16 +171,17 @@ class ParamsTest {
     @Test
     fun testParams() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
         instance.add(tree)
-        val value = rootPackage
-            .hierarchyIterator(instance)
-            .asSequence()
-            .filterIsInstance<ParameterizedHandle>()
-            .map { it to handler.params[it] }
-            .toList()
+        val value = instance.access { queries ->
+            rootPackage
+                .hierarchyIterator(queries)
+                .asSequence()
+                .filterIsInstance<ParameterizedHandle>()
+                .map { it to handler.params[it] }
+                .toList()
+        }
 
         assertEquals(expected, value)
     }

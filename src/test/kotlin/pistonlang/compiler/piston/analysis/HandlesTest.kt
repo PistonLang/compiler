@@ -79,14 +79,15 @@ class HandlesTest {
     @Test
     fun testHandles() {
         val instance = defaultInstance()
-        val handler = defaultHandler(instance)
-        instance.addHandler(handler)
+        val handler = instance.addHandler(defaultHandler)
 
-        assertAll(expectations.map { (code, expected) ->
-            {
-                instance.addFile(reference, code)
-                assertEquals(expected, handler.fileItems[reference])
-            }
-        })
+        instance.access {
+            assertAll(expectations.map { (code, expected) ->
+                {
+                    instance.addFile(reference, code)
+                    assertEquals(expected, handler.fileItems[reference])
+                }
+            })
+        }
     }
 }
