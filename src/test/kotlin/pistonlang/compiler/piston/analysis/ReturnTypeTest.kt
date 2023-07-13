@@ -46,7 +46,7 @@ class ReturnTypeTest {
                     location = NodeLocation(pos = 0..5, type = PistonType.identifier),
                     handles = nonEmptyListOf(
                         MultiInstanceClassHandle(
-                            parent = FileHandle(path = "piston/numbers.pi"),
+                            parent = FileHandle(path = "piston.numbers.pi"),
                             name = "Int32",
                             id = 0
                         )
@@ -55,7 +55,7 @@ class ReturnTypeTest {
             ),
             data = TypeInstance(
                 type = MultiInstanceClassHandle(
-                    parent = FileHandle(path = "piston/numbers.pi"),
+                    parent = FileHandle(path = "piston.numbers.pi"),
                     name = "Int32",
                     id = 0
                 ),
@@ -122,7 +122,7 @@ class ReturnTypeTest {
                     location = NodeLocation(pos = 0..5, type = PistonType.identifier),
                     handles = nonEmptyListOf(
                         MultiInstanceClassHandle(
-                            parent = FileHandle(path = "piston/numbers.pi"),
+                            parent = FileHandle(path = "piston.numbers.pi"),
                             name = "Int32",
                             id = 0
                         )
@@ -131,7 +131,7 @@ class ReturnTypeTest {
             ),
             data = TypeInstance(
                 type = MultiInstanceClassHandle(
-                    parent = FileHandle(path = "piston/numbers.pi"),
+                    parent = FileHandle(path = "piston.numbers.pi"),
                     name = "Int32",
                     id = 0
                 ),

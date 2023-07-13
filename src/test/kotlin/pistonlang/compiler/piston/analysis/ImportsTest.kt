@@ -37,7 +37,7 @@ class ImportsTest {
                 }
                 
                 def useAll(): Int32 = a(a + b) - c.d
-            """.trimIndent() to "Dependent(dependencies=[HandleData(location=NodeLocation(pos=10..11, type=identifier), handles=NonEmptyList(nested=[FunctionHandle(parent=FileHandle(path=foo/a.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=49..50, type=identifier), handles=NonEmptyList(nested=[ValHandle(parent=FileHandle(path=bar/items.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=52..53, type=identifier), handles=NonEmptyList(nested=[VarHandle(parent=FileHandle(path=bar/items.pi), name=b, id=0)])), HandleData(location=NodeLocation(pos=55..56, type=identifier), handles=NonEmptyList(nested=[PackageHandle(path=[bar, c])]))], data={a=[0, 1], b=[2], c=[3]})"
+            """.trimIndent() to "Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..9, type=identifier), handles=NonEmptyList(nested=[PackageHandle(path=foo)])), HandleData(location=NodeLocation(pos=10..11, type=identifier), handles=NonEmptyList(nested=[FunctionHandle(parent=FileHandle(path=foo.a.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=42..45, type=identifier), handles=NonEmptyList(nested=[PackageHandle(path=bar)])), HandleData(location=NodeLocation(pos=49..50, type=identifier), handles=NonEmptyList(nested=[ValHandle(parent=FileHandle(path=bar.items.pi), name=a, id=0)])), HandleData(location=NodeLocation(pos=52..53, type=identifier), handles=NonEmptyList(nested=[VarHandle(parent=FileHandle(path=bar.items.pi), name=b, id=0)])), HandleData(location=NodeLocation(pos=55..56, type=identifier), handles=NonEmptyList(nested=[PackageHandle(path=bar.c)]))], data={a=[1, 3], b=[4], c=[5]})"
         }
     }
 

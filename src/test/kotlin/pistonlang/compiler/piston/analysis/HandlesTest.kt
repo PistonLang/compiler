@@ -2,10 +2,7 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
-import pistonlang.compiler.common.items.FileHandle
-import pistonlang.compiler.common.items.MemberList
-import pistonlang.compiler.common.items.MemberType
-import pistonlang.compiler.common.items.memberListOf
+import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.piston.parser.PistonType
 import kotlin.test.assertEquals
@@ -84,7 +81,7 @@ class HandlesTest {
         instance.access {
             assertAll(expectations.map { (code, expected) ->
                 {
-                    instance.addFile(reference, code)
+                    instance.addFile(rootPackage, reference, code)
                     assertEquals(expected, handler.fileItems[reference])
                 }
             })

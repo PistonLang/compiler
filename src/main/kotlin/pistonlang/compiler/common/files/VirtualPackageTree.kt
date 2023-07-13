@@ -3,15 +3,17 @@ package pistonlang.compiler.common.files
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import pistonlang.compiler.common.items.FileHandle
+import pistonlang.compiler.common.items.PackageHandle
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.util.EmptyIterator
 import java.util.*
+
 
 @JvmInline
 value class VirtualPackageTree<out Data> internal constructor(
     internal val node: VirtualPackageTreeNode<Data>,
 ) : Iterable<Pair<FileHandle, Data>> {
-    fun traverse(fn: (FileHandle, Data) -> Unit) = node.traverse(fn, "")
+    fun traverse(fn: (PackageHandle, FileHandle, Data) -> Unit) = node.traverse(fn, "")
 
     fun <Res> mapValues(fn: (Data) -> Res) = VirtualPackageTree(node.mapValues(fn))
 
@@ -25,9 +27,9 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
     internal val children: PersistentMap<String, VirtualPackageTreeNode<Data>>,
     internal val files: PersistentMap<String, Data>,
 ) {
-    internal fun traverse(fn: (FileHandle, Data) -> Unit, pathString: String) {
-        files.forEach { (name, code) -> fn(FileHandle(pathString + name), code) }
-        children.forEach { (name, child) -> child.traverse(fn, "$pathString$name/") }
+    internal fun traverse(fn: (PackageHandle, FileHandle, Data) -> Unit, pathString: String) {
+        files.forEach { (name, code) -> fn(PackageHandle(pathString.dropLast(1)), FileHandle(pathString + name), code) }
+        children.forEach { (name, child) -> child.traverse(fn, "$pathString$name$packPathDelimiter") }
     }
 
     internal fun <Res> mapValues(fn: (Data) -> Res): VirtualPackageTreeNode<Res> = VirtualPackageTreeNode(
@@ -52,7 +54,7 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
                 childIter.hasNext() -> {
                     nodeStack.push(childIter)
                     val (key, child) = childIter.next()
-                    prefix = "$prefix${key}/"
+                    prefix = "$prefix${key}$packPathDelimiter"
                     fileIter = child.files.iterator()
                     childIter = child.children.iterator()
                     findNextNode()
@@ -65,7 +67,7 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
                     fileIter = EmptyIterator
                     childIter = parent
                     if (prefix.isNotEmpty())
-                        prefix = prefix.dropLast(1).dropLastWhile { it != '/' }
+                        prefix = prefix.dropLast(1).dropLastWhile { it != packPathDelimiter }
                     findNextNode()
                 }
             }
@@ -127,4 +129,4 @@ inline fun <Data> virtualTree(fn: VirtualPackageTreeBuilder<Data>.() -> Unit): V
     VirtualPackageTreeBuilder<Data>().apply(fn).buildRoot()
 
 fun CompilerInstance.add(tree: VirtualPackageTree<String>) =
-    tree.traverse { reference, code -> this.addFile(reference, code) }
+    tree.traverse { pack, file, code -> this.addFile(pack, file, code) }

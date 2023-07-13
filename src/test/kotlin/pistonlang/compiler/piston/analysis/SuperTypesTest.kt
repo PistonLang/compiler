@@ -97,7 +97,7 @@ class SuperTypesTest {
         instance.add(tree)
         val value = instance.access { queries ->
             queries
-                .packageItems[PackageHandle(emptyList())]
+                .packageItems[rootPackage]
                 .asSequence()
                 .flatMap { (_, values) ->
                     values

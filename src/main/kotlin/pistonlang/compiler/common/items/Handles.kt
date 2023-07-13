@@ -1,12 +1,23 @@
 package pistonlang.compiler.common.items
 
+import pistonlang.compiler.common.files.packPathDelimiter
+
+sealed interface Handle
+
 /**
  * A handle to something that can be a parent of another handle
  */
-sealed interface ParentHandle {
+sealed interface ParentHandle : Handle {
     val isFile: Boolean get() = false
 
     fun findFile(): FileHandle
+}
+
+/**
+ * A handle to something that has a parent
+ */
+sealed interface ChildHandle : Handle {
+    val parent: ParentHandle
 }
 
 /**
@@ -23,7 +34,7 @@ value class FileHandle(val path: String) : ParentHandle {
 /**
  * A handle to an item (anything that can be referenced during type-checking)
  */
-sealed interface ItemHandle {
+sealed interface ItemHandle : Handle {
     val itemType: ItemType
 }
 
@@ -31,20 +42,25 @@ sealed interface ItemHandle {
  * A handle to a package, represented by a path
  */
 @JvmInline
-value class PackageHandle(val path: List<String>) : ItemHandle {
-    fun subpackage(name: String) = PackageHandle(path + name)
+value class PackageHandle(val path: String) : ItemHandle {
+    val suffix: String
+        get() = path.substring(path.lastIndexOf('.') + 1)
+
+    fun subPackage(name: String) =
+        if (path.isEmpty()) PackageHandle(name)
+        else PackageHandle("$path$packPathDelimiter$name")
 
     override val itemType: ItemType
         get() = ItemType.Package
 }
 
-val rootPackage = PackageHandle(emptyList())
+val rootPackage = PackageHandle("")
 
 /**
  * A handle for a file member
  */
-sealed interface MemberHandle : ParentHandle, ItemHandle {
-    val parent: ParentHandle
+sealed interface MemberHandle : ParentHandle, ItemHandle, ChildHandle {
+    override val parent: ParentHandle
     val name: String
     val memberType: MemberType
     val id: Int
@@ -169,17 +185,17 @@ data class SetterHandle(
 }
 
 data class ConstructorHandle(
-    val parent: MultiInstanceClassHandle,
+    override val parent: MultiInstanceClassHandle,
     val id: Int
-): ItemHandle {
+) : ItemHandle, ChildHandle {
     override val itemType: ItemType
         get() = ItemType.Constructor
 }
 
 data class TypeParamHandle(
-    val parent: ParentHandle,
+    override val parent: ParentHandle,
     val id: Int
-) : ItemHandle, TypeHandle {
+) : ItemHandle, TypeHandle, ChildHandle {
     override val itemType: ItemType
         get() = ItemType.TypeParam
 }

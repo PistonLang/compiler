@@ -1,70 +1,33 @@
 package pistonlang.compiler.common.main
 
-import pistonlang.compiler.common.files.ChangeType
-import pistonlang.compiler.common.files.FileChange
-import pistonlang.compiler.common.files.FileData
-import pistonlang.compiler.common.files.PackageTree
+import pistonlang.compiler.common.files.PackageTreeNode
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.language.LanguageHandler
-import pistonlang.compiler.common.queries.DependentQuery
-import pistonlang.compiler.common.queries.QueryAccessor
-import pistonlang.compiler.common.queries.QueryVersion
-import pistonlang.compiler.common.queries.QueryVersionData
+import pistonlang.compiler.common.queries.*
 import java.util.*
 
-class GeneralQueries(
+class GeneralQueries internal constructor(
     versionData: QueryVersionData,
-    handlers: Map<String, LanguageHandler<*>>,
-    changes: Queue<FileChange>
+    private val inputs: InputQueries,
 ) {
-    val code: CodeQuery = CodeQuery(versionData) { FileData(false, "") }
-    private val options: OptionsQuery = OptionsQuery(versionData) { CompilerOptions("") }
-
     private val fileHandler: DependentQuery<FileHandle, LanguageHandler<*>?> =
         DependentQuery(versionData) { key: FileHandle ->
             val ext = key.path.substringAfterLast('.')
-            handlers[ext]
+            inputs.postfixHandler[ext]
         }
 
-    val filePackage: DependentQuery<FileHandle, PackageHandle> =
-        DependentQuery(versionData) { key: FileHandle ->
-            val ops = options[Unit]
-            val path = key.path.removePrefix(ops.startPath).split('/').dropLast(1)
-            PackageHandle(path)
-        }
-
-    val packageTree: DependentQuery<Unit, PackageTree> = DependentQuery(versionData, updateFn = { _, oldValue ->
-        updatePackageTree(oldValue, changes)
-    }) { _: Unit ->
-        updatePackageTree(PackageTree(rootPackage, QueryVersion(0)), changes)
-    }
-
-    context(QueryAccessor)
-    private tailrec fun updatePackageTree(tree: PackageTree, changes: Queue<FileChange>): PackageTree =
-        if (changes.isEmpty()) tree else {
-            val change = changes.poll()
-            val pack = filePackage[change.file]
-
-            val newTree = when (change.type) {
-                ChangeType.Addition -> tree.add(pack, change.file, change.version)
-
-                ChangeType.Update -> tree.update(pack, change.file, change.version)
-
-                ChangeType.Removal -> tree.remove(pack, change.file, change.version)
-            }
-
-            updatePackageTree(newTree, changes)
-        }
-
+    val packageHandleNode: DependentQuery<PackageHandle, PackageTreeNode?> = DependentQuery(
+        versionData,
+        equalityFun = { old, new -> old?.lastUpdated == new?.lastUpdated },
+        computeFn = { key -> inputs.packageTree[Unit].packages[key] }
+    )
 
     val packageItems: DependentQuery<PackageHandle, Map<String, List<ItemHandle>>> =
         DependentQuery(versionData) fn@{ key: PackageHandle ->
-            val node = packageTree[Unit].nodeFor(key) ?: return@fn emptyMap<String, List<ItemHandle>>()
+            val node = packageHandleNode[key] ?: return@fn emptyMap<String, List<ItemHandle>>()
             val res = mutableMapOf<String, MutableList<ItemHandle>>()
-            node.children.forEach { (name, node) ->
-                if (node.isValid) res
-                    .getOrPut(name) { mutableListOf() }
-                    .add(PackageHandle(key.path + name))
+            node.children.forEach { handle ->
+                res.getOrPut(handle.suffix) { mutableListOf() }.add(handle)
             }
             node.files.forEach { file ->
                 val handler = fileHandler[file] ?: return@forEach
@@ -109,39 +72,39 @@ class GeneralQueries(
 }
 
 context(QueryAccessor)
-fun PackageHandle.hierarchyIterator(queries: GeneralQueries) =
-    object : Iterator<MemberHandle> {
-        private var iterStack = Stack<Iterator<MemberHandle>>()
-        private var iter = queries.packageItems[this@hierarchyIterator]
+fun PackageHandle.hierarchyIterator(queries: GeneralQueries) = object : Iterator<MemberHandle> {
+    private var iterStack = Stack<Iterator<MemberHandle>>()
+    private var iter = queries
+        .packageItems[this@hierarchyIterator]
+        .asSequence()
+        .flatMap { (_, list) -> list }
+        .filterIsInstance<MemberHandle>().iterator()
+
+    override fun hasNext(): Boolean = iter.hasNext()
+
+    private fun findNext(handle: MemberHandle) {
+        val next = queries
+            .childItems[handle]
             .asSequence()
             .flatMap { (_, list) -> list }
             .filterIsInstance<MemberHandle>()
             .iterator()
 
-        override fun hasNext(): Boolean = iter.hasNext()
-
-        private fun findNext(handle: MemberHandle) {
-            val next = queries.childItems[handle]
-                .asSequence()
-                .flatMap { (_, list) -> list }
-                .filterIsInstance<MemberHandle>()
-                .iterator()
-
-            if (next.hasNext()) {
-                iterStack.push(iter)
-                iter = next
-            } else findNext()
-        }
-
-        private tailrec fun findNext() {
-            if (iter.hasNext() || iterStack.isEmpty()) return
-            iter = iterStack.pop()
-            findNext()
-        }
-
-        override fun next(): MemberHandle {
-            val res = iter.next()
-            findNext(res)
-            return res
-        }
+        if (next.hasNext()) {
+            iterStack.push(iter)
+            iter = next
+        } else findNext()
     }
+
+    private tailrec fun findNext() {
+        if (iter.hasNext() || iterStack.isEmpty()) return
+        iter = iterStack.pop()
+        findNext()
+    }
+
+    override fun next(): MemberHandle {
+        val res = iter.next()
+        findNext(res)
+        return res
+    }
+}

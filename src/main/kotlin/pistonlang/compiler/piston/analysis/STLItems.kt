@@ -198,14 +198,14 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
     }
 }
 
-private val numbers = FileHandle("piston/numbers.pi")
-private val chars = FileHandle("piston/chars.pi")
-private val strings = FileHandle("piston/strings.pi")
-private val bools = FileHandle("piston/bools.pi")
-private val special = FileHandle("piston/special.pi")
-private val tuples = FileHandle("piston/tuples.pi")
-private val arrays = FileHandle("piston/arrays.pi")
-private val console = FileHandle("piston/io/console.pi")
+private val numbers = FileHandle("piston.numbers.pi")
+private val chars = FileHandle("piston.chars.pi")
+private val strings = FileHandle("piston.strings.pi")
+private val bools = FileHandle("piston.bools.pi")
+private val special = FileHandle("piston.special.pi")
+private val tuples = FileHandle("piston.tuples.pi")
+private val arrays = FileHandle("piston.arrays.pi")
+private val console = FileHandle("piston.io.console.pi")
 
 val int8Handle = MultiInstanceClassHandle(numbers, "Int8", 0)
 val int16Handle = MultiInstanceClassHandle(numbers, "Int16", 0)

@@ -34,7 +34,7 @@ data class GreenBranch<Type : SyntaxType>(
     override val length: Int
 ) : GreenNode<Type> {
     override val content: String
-        get() = children.joinToString()
+        get() = children.joinToString(separator = "") { it.content }
 
     override val childCount: Int
         get() = children.size

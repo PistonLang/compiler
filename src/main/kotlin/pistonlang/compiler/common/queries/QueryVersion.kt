@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 value class QueryVersionData(private val atomic: AtomicInteger = AtomicInteger(0)) {
     val current get() = QueryVersion(atomic.get())
 
-    fun update() = atomic.incrementAndGet().let(::QueryVersion)
+    internal fun update() = atomic.incrementAndGet().let(::QueryVersion)
 }
 
 @JvmInline

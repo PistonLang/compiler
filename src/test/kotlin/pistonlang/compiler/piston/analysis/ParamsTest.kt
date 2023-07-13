@@ -99,7 +99,7 @@ class ParamsTest {
                     location = NodeLocation(pos = 4..9, type = PistonType.identifier),
                     handles = nonEmptyListOf(
                         MultiInstanceClassHandle(
-                            parent = FileHandle(path = "piston/numbers.pi"),
+                            parent = FileHandle(path = "piston.numbers.pi"),
                             name = "Int32",
                             id = 0
                         )
@@ -109,7 +109,7 @@ class ParamsTest {
                     location = NodeLocation(pos = 14..19, type = PistonType.identifier),
                     handles = nonEmptyListOf(
                         MultiInstanceClassHandle(
-                            parent = FileHandle(path = "piston/numbers.pi"),
+                            parent = FileHandle(path = "piston.numbers.pi"),
                             name = "Int32",
                             id = 0
                         )
@@ -119,7 +119,7 @@ class ParamsTest {
             data = listOf(
                 TypeInstance(
                     type = MultiInstanceClassHandle(
-                        parent = FileHandle(path = "piston/numbers.pi"),
+                        parent = FileHandle(path = "piston.numbers.pi"),
                         name = "Int32",
                         id = 0
                     ),
@@ -128,7 +128,7 @@ class ParamsTest {
                 ),
                 TypeInstance(
                     type = MultiInstanceClassHandle(
-                        parent = FileHandle(path = "piston/numbers.pi"),
+                        parent = FileHandle(path = "piston.numbers.pi"),
                         name = "Int32",
                         id = 0
                     ),
@@ -147,7 +147,7 @@ class ParamsTest {
                     location = NodeLocation(pos = 6..11, type = PistonType.identifier),
                     handles = nonEmptyListOf(
                         MultiInstanceClassHandle(
-                            parent = FileHandle(path = "piston/numbers.pi"),
+                            parent = FileHandle(path = "piston.numbers.pi"),
                             name = "Int32",
                             id = 0
                         )
@@ -157,7 +157,7 @@ class ParamsTest {
             data = listOf(
                 TypeInstance(
                     type = MultiInstanceClassHandle(
-                        parent = FileHandle(path = "piston/numbers.pi"),
+                        parent = FileHandle(path = "piston.numbers.pi"),
                         name = "Int32",
                         id = 0
                     ),
