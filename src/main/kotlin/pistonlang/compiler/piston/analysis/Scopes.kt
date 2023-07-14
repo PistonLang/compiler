@@ -12,7 +12,7 @@ interface Scope {
     val parent: Scope?
 }
 
-object BaseScope : Scope {
+data object BaseScope : Scope {
     override val parent: Scope?
         get() = null
 
@@ -21,11 +21,11 @@ object BaseScope : Scope {
         ?: EmptySequence
 }
 
-class StaticScope(override val parent: Scope?, private val map: Map<String, List<ItemHandle>>) : Scope {
+data class StaticScope(override val parent: Scope?, private val map: Map<String, List<ItemHandle>>) : Scope {
     override fun get(name: String): Sequence<ItemHandle> = map[name]?.asSequence() ?: EmptySequence
 }
 
-class ImportScope(override val parent: Scope, private val data: ImportData) : Scope {
+data class ImportScope(override val parent: Scope, private val data: ImportData) : Scope {
     override fun get(name: String): Sequence<ItemHandle> {
         val ids = data.data[name] ?: return EmptySequence
 
@@ -35,7 +35,7 @@ class ImportScope(override val parent: Scope, private val data: ImportData) : Sc
     }
 }
 
-class StaticTypeScope(override val parent: Scope?, private val map: Map<String, List<ItemHandle>>) : Scope {
+data class StaticTypeScope(override val parent: Scope?, private val map: Map<String, List<ItemHandle>>) : Scope {
     override fun get(name: String): Sequence<ItemHandle> {
         val handles = map[name] ?: return EmptySequence
 

@@ -9,6 +9,7 @@ import pistonlang.compiler.common.parser.Parser
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.*
 import pistonlang.compiler.common.queries.DependentQuery
+import pistonlang.compiler.common.queries.Query
 import pistonlang.compiler.common.queries.QueryAccessor
 import pistonlang.compiler.common.queries.QueryVersionData
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
@@ -309,7 +310,7 @@ class PistonLanguageHandler(
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
-            val scope = buildTypeParamScopeFor(key)
+            val scope = typeParamScope[key]
 
             val types = node.childSequence
                 .filter { it.type in PistonSyntaxSets.types }
@@ -327,7 +328,7 @@ class PistonLanguageHandler(
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
-            val scope = buildTypeParamScopeFor(key)
+            val scope = typeParamScope[key]
 
             val type = handleTypeNode(node, deps, scope, false)
 
@@ -342,7 +343,7 @@ class PistonLanguageHandler(
                 ?: return@fn emptyParamData
 
             val deps = mutableListOf<HandleData<PistonType>>()
-            val scope = buildTypeParamScopeFor(key)
+            val scope = typeParamScope[key]
 
             val params = node.childSequence
                 .filter { it.type == PistonType.functionParam }
@@ -370,7 +371,7 @@ class PistonLanguageHandler(
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
-            val scope = buildTypeParamScopeFor(key)
+            val scope = typeParamScope[key]
 
             val res = MutableList(params.size) { mutableListOf<TypeInstance>() }
 
@@ -530,39 +531,42 @@ class PistonLanguageHandler(
         return handleTypeNode(child, deps, scope, true)
     }
 
-
-    context(QueryAccessor)
-    private fun buildFileScope(fileHandle: FileHandle): Scope {
-        val pack = inputQueries.filePackage[fileHandle]!!
+    private val fileScope: Query<FileHandle, Scope> = DependentQuery(versionData) { key ->
+        val pack = inputQueries.filePackage[key]!!
         val packItems = generalQueries.packageItems[pack]
-        val importData = fileImportData[fileHandle]
+        val importData = fileImportData[key]
         val packScope = StaticScope(BaseScope, packItems)
 
-        return ImportScope(packScope, importData)
+        ImportScope(packScope, importData)
+    }
+
+    private val staticScopeWithTypeParams: Query<MemberHandle, Scope> = DependentQuery(versionData) { key ->
+        val parentScope = typeParamScope[key]
+        val items = generalQueries.childItems[key]
+
+        StaticTypeScope(parentScope, items)
+    }
+
+    private val staticScopeWithoutTypeParams: Query<MemberHandle, Scope> = DependentQuery(versionData) { key ->
+        val parentScope = getStaticParentScope(key.parent, false)
+        val items = generalQueries.childItems[key]
+
+        StaticTypeScope(parentScope, items)
     }
 
     context(QueryAccessor)
-    private fun buildStaticMemberScope(handle: MemberHandle, withTypeParams: Boolean): Scope {
-        val parentScope =
-            if (withTypeParams) buildTypeParamScopeFor(handle)
-            else buildStaticParentScope(handle.parent, false)
-        val items = generalQueries.childItems[handle]
-
-        return StaticTypeScope(parentScope, items)
+    private fun getStaticParentScope(handle: ParentHandle, withTypeParams: Boolean) = when {
+        handle.isFile -> fileScope[handle as FileHandle]
+        withTypeParams -> staticScopeWithTypeParams[handle as MemberHandle]
+        else -> staticScopeWithoutTypeParams[handle as MemberHandle]
     }
 
-    context(QueryAccessor)
-    private fun buildStaticParentScope(handle: ParentHandle, withTypeParams: Boolean) =
-        if (handle.isFile) buildFileScope(handle as FileHandle)
-        else buildStaticMemberScope(handle as MemberHandle, withTypeParams)
+    private val typeParamScope: Query<MemberHandle, Scope> = DependentQuery(versionData) { key ->
+        val parent = key.parent
 
-    context(QueryAccessor)
-    private fun buildTypeParamScopeFor(handle: MemberHandle): Scope {
-        val parent = handle.parent
+        val parentScope = getStaticParentScope(parent, !key.itemType.type)
+        val typeParams = generalQueries.typeParams[key]
 
-        val parentScope = buildStaticParentScope(parent, !handle.itemType.type)
-        val typeParams = generalQueries.typeParams[handle]
-
-        return StaticScope(parentScope, typeParams)
+        StaticScope(parentScope, typeParams)
     }
 }
