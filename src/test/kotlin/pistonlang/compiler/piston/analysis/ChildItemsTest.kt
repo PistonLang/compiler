@@ -12,7 +12,7 @@ class ChildItemsTest {
         data("func.pi") {
             """
                 def func[A where A <: Int32](a: A, b: Int32): Int32 = a + b
-            """.trimIndent() to "{}"
+            """.trimIndent() to "MemberList(list=[{}, {}, {}, {}, {}, {}, {}, {}])"
         }
 
         data("class.pi") {
@@ -22,7 +22,7 @@ class ChildItemsTest {
                     
                     def foo() = println(t.toString())
                 }
-            """.trimIndent() to "{t=MemberList(list=[[], [], [], [NodeLocation(pos=32..44, type=propertyDef)], [], [], [], []]), foo=MemberList(list=[[], [], [], [], [], [NodeLocation(pos=54..87, type=functionDef)], [], []])}"
+            """.trimIndent() to "MemberList(list=[{}, {}, {}, {t=[NodeLocation(pos=32..44, type=propertyDef)]}, {}, {foo=[NodeLocation(pos=54..87, type=functionDef)]}, {}, {}])"
         }
         data("trait.pi") {
             """
@@ -31,7 +31,7 @@ class ChildItemsTest {
                     
                     def bar: Int32 = 10
                 }
-            """.trimIndent() to "{foo=MemberList(list=[[], [], [], [], [], [NodeLocation(pos=16..35, type=functionDef)], [], []]), bar=MemberList(list=[[], [], [], [], [], [], [NodeLocation(pos=35..54, type=functionDef)], []])}"
+            """.trimIndent() to "MemberList(list=[{}, {}, {}, {}, {}, {foo=[NodeLocation(pos=16..35, type=functionDef)]}, {bar=[NodeLocation(pos=35..54, type=functionDef)]}, {}])"
         }
     }
 
@@ -45,9 +45,8 @@ class ChildItemsTest {
             assertAll(tree.map { (file, data) ->
                 {
                     val expected = data.second
-                    handler.fileItems[file].forEach { (name, list) ->
-                        MemberType.entries.forEach inner@{ type ->
-                            if (!list.iteratorFor(type).hasNext()) return@inner
+                    MemberType.entries.forEach inner@{ type ->
+                        handler.fileItems[file].iteratorFor(type).forEach { (name) ->
                             val ref = type.buildHandle(file, name, 0)
                             assertEquals(expected, handler.childItems[ref].toString())
                         }

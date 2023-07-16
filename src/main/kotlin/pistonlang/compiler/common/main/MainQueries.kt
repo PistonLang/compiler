@@ -46,9 +46,9 @@ class GeneralQueries internal constructor(
         }
         node.files.forEach { file ->
             val handler = fileHandler[file] ?: return@forEach
-            handler.fileItems[file].forEach { (name, list) ->
-                MemberType.entries.forEach { type ->
-                    list.iteratorFor(type).withIndex().forEach { (index, _) ->
+            MemberType.entries.forEach { type ->
+                handler.fileItems[file].iteratorFor(type).forEach { (name, list) ->
+                    list.indices.forEach { index ->
                         res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(file, name, index))
                     }
                 }
@@ -60,9 +60,9 @@ class GeneralQueries internal constructor(
     val childItems: Query<MemberHandle, Map<String, List<ItemHandle>>> = DependentQuery(versionData) fn@{ key ->
         val res = mutableMapOf<String, MutableList<ItemHandle>>()
         val handler = childHandler[key] ?: return@fn emptyMap<String, List<ItemHandle>>()
-        handler.childItems[key].forEach { (name, list) ->
-            MemberType.entries.forEach { type ->
-                list.iteratorFor(type).withIndex().forEach { (index, _) ->
+        MemberType.entries.forEach { type ->
+            handler.childItems[key].iteratorFor(type).forEach { (name, list) ->
+                list.indices.forEach { index ->
                     res.getOrPut(name) { mutableListOf() }.add(type.buildHandle(key, name, index))
                 }
             }

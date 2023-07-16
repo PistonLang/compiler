@@ -20,7 +20,7 @@ interface LanguageHandler<Type : SyntaxType> {
     /**
      * List of items contained in a file
      */
-    val fileItems: Query<FileHandle, Map<String, MemberList<Type>>>
+    val fileItems: Query<FileHandle, MemberList<Type>>
 
     /**
      * List of type params
@@ -30,7 +30,7 @@ interface LanguageHandler<Type : SyntaxType> {
     /**
      * List of children of a given item
      */
-    val childItems: Query<MemberHandle, Map<String, MemberList<Type>>>
+    val childItems: Query<MemberHandle, MemberList<Type>>
 
     /**
      * List of constructors of a class

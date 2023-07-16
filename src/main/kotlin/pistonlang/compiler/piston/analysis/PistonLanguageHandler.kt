@@ -48,11 +48,11 @@ class PistonLanguageHandler(
         val parent = key.parent
         return if (parent.isFile) {
             val node = ast[parent as FileHandle]
-            val pos = fileItems[parent][key.name]?.get(key.memberType, key.id) ?: return null
+            val pos = fileItems[parent][key.memberType, key.name, key.id] ?: return null
             node.asRoot().findAtRelative(pos)?.green
         } else {
             val node = astNode[parent as MemberHandle] ?: return null
-            val pos = childItems[parent][key.name]?.get(key.memberType, key.id) ?: return null
+            val pos = childItems[parent][key.memberType, key.name, key.id] ?: return null
             node.asRoot().findAtRelative(pos)?.green
         }
     }
@@ -63,27 +63,24 @@ class PistonLanguageHandler(
     context(QueryAccessor)
     fun parentRelativeLocation(handle: MemberHandle): RelativeNodeLoc<PistonType>? {
         val parent = handle.parent
-        return (if (parent.isFile) fileItems[parent as FileHandle] else childItems[parent as MemberHandle])[handle.name]
-            ?.get(handle.memberType, handle.id)
-            ?: return null
+        return (if (parent.isFile) fileItems[parent as FileHandle] else childItems[parent as MemberHandle])[handle.memberType, handle.name, handle.id]
     }
 
-    override val fileItems: Query<FileHandle, Map<String, MemberList<PistonType>>> =
-        DependentQuery(versionData) { key: FileHandle ->
-            val res = mutableMapOf<String, MutableMemberList<PistonType>>()
+    override val fileItems: Query<FileHandle, MemberList<PistonType>> = DependentQuery(versionData) { key ->
+        val res = MutableMemberList<PistonType>()
 
-            ast[key].childSequence
-                .filter { child -> child.type in PistonSyntaxSets.defs }
-                .forEach { child -> defNodeToReference(child, res) }
+        ast[key].childSequence
+            .filter { child -> child.type in PistonSyntaxSets.defs }
+            .forEach { child -> defNodeToReference(child, res) }
 
-            res.mapValues { (_, list) -> list.toImmutable() }
-        }
+        res.toImmutable()
+    }
 
-    override val childItems: Query<MemberHandle, Map<String, MemberList<PistonType>>> =
+    override val childItems: Query<MemberHandle, MemberList<PistonType>> =
         DependentQuery(versionData) fn@{ key: MemberHandle ->
-            val res = mutableMapOf<String, MutableMemberList<PistonType>>()
+            val res = MutableMemberList<PistonType>()
 
-            val node = (astNode[key] ?: return@fn emptyMap<String, MemberList<PistonType>>()).asRoot()
+            val node = (astNode[key] ?: return@fn res.toImmutable()).asRoot()
 
             node.lastDirectChild(PistonType.statementBlock)?.let { block ->
                 block.childSequence
@@ -91,7 +88,7 @@ class PistonLanguageHandler(
                     .forEach { child -> defNodeToReference(child, res) }
             }
 
-            res.mapValues { (_, list) -> list.toImmutable() }
+            res.toImmutable()
         }
 
     override val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> =
@@ -218,7 +215,7 @@ class PistonLanguageHandler(
 
     private fun defNodeToReference(
         child: GreenChild<PistonType>,
-        res: MutableMap<String, MutableMemberList<PistonType>>
+        res: MutableMemberList<PistonType>
     ) {
         val node = child.value
         var name: String = node.firstDirectChild(PistonType.identifier)?.content ?: ""
@@ -254,12 +251,12 @@ class PistonLanguageHandler(
         }
 
         val loc = child.parentRelativeLocation
-        res.getOrPut(name) { MutableMemberList() }.add(type, loc)
+        res.add(type, name, loc)
     }
 
     private fun defNodeToReference(
         node: RedNode<PistonType>,
-        res: MutableMap<String, MutableMemberList<PistonType>>
+        res: MutableMemberList<PistonType>
     ) {
         var name: String = node.firstDirectChild(PistonType.identifier)?.content ?: ""
         val type: MemberType = when (node.type) {
@@ -294,7 +291,7 @@ class PistonLanguageHandler(
         }
 
         val loc = node.location
-        res.getOrPut(name) { MutableMemberList() }.add(type, loc)
+        res.add(type, name, loc)
     }
 
     override val constructors: Query<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> =

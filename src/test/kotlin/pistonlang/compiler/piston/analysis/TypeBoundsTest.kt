@@ -3,12 +3,8 @@ package pistonlang.compiler.piston.analysis
 import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.items.rootPackage
 import pistonlang.compiler.common.main.hierarchyIterator
-import pistonlang.compiler.common.parser.NodeLocation
-import pistonlang.compiler.common.types.TypeInstance
-import pistonlang.compiler.piston.parser.PistonType
-import pistonlang.compiler.util.nonEmptyListOf
 import kotlin.test.assertEquals
 
 class TypeBoundsTest {
@@ -28,218 +24,13 @@ class TypeBoundsTest {
         }
     }
 
-    private val expected: List<Pair<MemberHandle, TypeBoundData>> =
-        listOf(
-            TraitHandle(
-                parent = FileHandle(path = "classes.pi"),
-                name = "Comparable",
-                id = 0
-            ) to Dependent(
-                emptyList(),
-                listOf(emptyList())
-            ),
-            FunctionHandle(
-                parent = TraitHandle(parent = FileHandle(path = "classes.pi"), name = "Comparable", id = 0),
-                name = "compare",
-                id = 0
-            ) to emptyTypeBoundData,
-            TraitHandle(
-                parent = FileHandle(path = "classes.pi"),
-                name = "Bar",
-                id = 0
-            ) to emptyTypeBoundData,
-            MultiInstanceClassHandle(
-                parent = FileHandle(path = "classes.pi"),
-                name = "Foo",
-                id = 0
-            ) to Dependent(
-                dependencies = listOf(
-                    HandleData(
-                        location = NodeLocation(pos = 6..7, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ),
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 11..21, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TraitHandle(
-                                parent = FileHandle(path = "classes.pi"),
-                                name = "Comparable",
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 22..23, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ),
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 26..27, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ),
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 31..32, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ),
-                                id = 1
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 34..35, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ), id = 1
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 39..42, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TraitHandle(
-                                parent = FileHandle(path = "classes.pi"),
-                                name = "Bar",
-                                id = 0
-                            )
-                        )
-                    )
-                ),
-                data = listOf(
-                    listOf(
-                        TypeInstance(
-                            type = TraitHandle(parent = FileHandle(path = "classes.pi"), name = "Comparable", id = 0),
-                            args = listOf(
-                                TypeInstance(
-                                    type = TypeParamHandle(
-                                        parent = MultiInstanceClassHandle(
-                                            parent = FileHandle(path = "classes.pi"),
-                                            name = "Foo",
-                                            id = 0
-                                        ),
-                                        id = 0
-                                    ),
-                                    args = emptyList(),
-                                    nullable = false
-                                )
-                            ),
-                            nullable = false
-                        ),
-                        TypeInstance(
-                            type = TypeParamHandle(
-                                parent = MultiInstanceClassHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "Foo",
-                                    id = 0
-                                ),
-                                id = 1
-                            ),
-                            args = emptyList(),
-                            nullable = false
-                        )
-                    ),
-                    listOf(
-                        TypeInstance(
-                            type = TraitHandle(parent = FileHandle(path = "classes.pi"), name = "Bar", id = 0),
-                            args = emptyList(),
-                            nullable = false
-                        )
-                    )
-                )
-            ),
-            FunctionHandle(
-                parent = FileHandle(path = "classes.pi"),
-                name = "foo",
-                id = 0
-            ) to Dependent(
-                dependencies = listOf(
-                    HandleData(
-                        location = NodeLocation(pos = 6..7, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = FunctionHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "foo",
-                                    id = 0
-                                ),
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 11..21, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TraitHandle(
-                                parent = FileHandle(path = "classes.pi"),
-                                name = "Comparable",
-                                id = 0
-                            )
-                        )
-                    ), HandleData(
-                        location = NodeLocation(pos = 22..23, type = PistonType.identifier),
-                        handles = nonEmptyListOf(
-                            TypeParamHandle(
-                                parent = FunctionHandle(
-                                    parent = FileHandle(path = "classes.pi"),
-                                    name = "foo",
-                                    id = 0
-                                ),
-                                id = 0
-                            )
-                        )
-                    )
-                ),
-                data = listOf(
-                    listOf(
-                        TypeInstance(
-                            type = TraitHandle(parent = FileHandle(path = "classes.pi"), name = "Comparable", id = 0),
-                            args = listOf(
-                                TypeInstance(
-                                    type = TypeParamHandle(
-                                        parent = FunctionHandle(
-                                            parent = FileHandle(path = "classes.pi"),
-                                            name = "foo",
-                                            id = 0
-                                        ),
-                                        id = 0
-                                    ),
-                                    args = emptyList(),
-                                    nullable = false
-                                )
-                            ),
-                            nullable = false
-                        )
-                    )
-                )
-            )
-        )
+    private val expected = """
+        (MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=26..27, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=31..32, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1)])), HandleData(location=NodeLocation(pos=34..35, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1)])), HandleData(location=NodeLocation(pos=39..42, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0)]))], data=[[TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), args=[TypeInstance(type=TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0), args=[], nullable=false)], nullable=false), TypeInstance(type=TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1), args=[], nullable=false)], [TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0), args=[], nullable=false)]]))
+        (TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), Dependent(dependencies=[], data=[[]]))
+        (FunctionHandle(parent=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), name=compare, id=0), Dependent(dependencies=[], data=[]))
+        (TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0), Dependent(dependencies=[], data=[]))
+        (FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0)]))], data=[[TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), args=[TypeInstance(type=TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0), args=[], nullable=false)], nullable=false)]]))
+    """.trimIndent()
 
     @Test
     fun testTypeParams() {
@@ -252,7 +43,7 @@ class TypeBoundsTest {
                 .hierarchyIterator(queries)
                 .asSequence()
                 .map { it to handler.typeParamBounds[it] }
-                .toList()
+                .joinToString(separator = "\n")
         }
 
         assertEquals(expected, value)

@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 class HandlesTest {
     private val reference = FileHandle("test.pi")
 
-    private val expectations: List<Pair<String, Map<String, MemberList<PistonType>>>> = listOf(
+    private val expectations: List<Pair<String, MemberList<PistonType>>> = listOf(
         """
         def foo[T](list: List[T]) = Unit
         
@@ -35,30 +35,16 @@ class HandlesTest {
         class C <: A {
             def print() = 'C'.println()
         }
-        """.trimIndent() to mapOf(
-            "foo" to memberListOf(
-                MemberType.Function to NodeLocation(0..32, PistonType.functionDef)
-            ),
-            "bar" to memberListOf(
-                MemberType.Getter to NodeLocation(34..46, PistonType.functionDef),
-                MemberType.Setter to NodeLocation(48..83, PistonType.functionDef),
-            ),
-            "a" to memberListOf(
-                MemberType.Val to NodeLocation(85..95, PistonType.propertyDef),
-            ),
-            "b" to memberListOf(
-                MemberType.Var to NodeLocation(97..107, PistonType.propertyDef)
-            ),
-            "A" to memberListOf(
-                MemberType.Trait to NodeLocation(109..152, PistonType.traitDef)
-            ),
-            "B" to memberListOf(
-                MemberType.MultiInstanceClass to NodeLocation(154..231, PistonType.classDef)
-            ),
-            "C" to memberListOf(
-                MemberType.SingletonClass to NodeLocation(233..281, PistonType.classDef)
-            ),
-        ),
+        """.trimIndent() to MutableMemberList<PistonType>().apply {
+            add(MemberType.Function, "foo", NodeLocation(0..32, PistonType.functionDef))
+            add(MemberType.Getter, "bar", NodeLocation(34..46, PistonType.functionDef))
+            add(MemberType.Setter, "bar", NodeLocation(48..83, PistonType.functionDef))
+            add(MemberType.Val, "a", NodeLocation(85..95, PistonType.propertyDef))
+            add(MemberType.Var, "b", NodeLocation(97..107, PistonType.propertyDef))
+            add(MemberType.Trait, "A", NodeLocation(109..152, PistonType.traitDef))
+            add(MemberType.MultiInstanceClass, "B", NodeLocation(154..231, PistonType.classDef))
+            add(MemberType.SingletonClass, "C", NodeLocation(233..281, PistonType.classDef))
+        }.toImmutable(),
         """
         import {
             foo.a               // function
@@ -66,11 +52,9 @@ class HandlesTest {
         }
         
         def useAll() = a(a + b) - c.d
-        """.trimIndent() to mapOf(
-            "useAll" to memberListOf(
-                MemberType.Function to NodeLocation(93..122, PistonType.functionDef)
-            )
-        )
+        """.trimIndent() to MutableMemberList<PistonType>().apply {
+            add(MemberType.Function, "useAll", NodeLocation(93..122, PistonType.functionDef))
+        }.toImmutable()
     )
 
     @Test
