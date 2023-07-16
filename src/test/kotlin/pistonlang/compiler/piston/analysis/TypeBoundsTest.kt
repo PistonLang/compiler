@@ -6,6 +6,7 @@ import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.main.hierarchyIterator
 import pistonlang.compiler.common.parser.NodeLocation
+import pistonlang.compiler.common.types.TypeInstance
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.nonEmptyListOf
 import kotlin.test.assertEquals

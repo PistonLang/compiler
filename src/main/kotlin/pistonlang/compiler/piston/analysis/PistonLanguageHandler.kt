@@ -12,6 +12,8 @@ import pistonlang.compiler.common.queries.DependentQuery
 import pistonlang.compiler.common.queries.Query
 import pistonlang.compiler.common.queries.QueryAccessor
 import pistonlang.compiler.common.queries.QueryVersionData
+import pistonlang.compiler.common.types.TypeInstance
+import pistonlang.compiler.common.types.errorInstance
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.assertNonEmpty
@@ -32,7 +34,7 @@ class PistonLanguageHandler(
 ) : LanguageHandler<PistonType> {
     override val extensions: List<String> = listOf("pi")
 
-    override val ast: DependentQuery<FileHandle, GreenNode<PistonType>> =
+    private val ast: DependentQuery<FileHandle, GreenNode<PistonType>> =
         DependentQuery(versionData, equalityFun = { _, _ -> false }) { key: FileHandle ->
             val data = inputQueries.code[key]
             if (!data.valid) emptyNode else {
@@ -66,7 +68,7 @@ class PistonLanguageHandler(
             ?: return null
     }
 
-    override val fileItems: DependentQuery<FileHandle, Map<String, MemberList<PistonType>>> =
+    override val fileItems: Query<FileHandle, Map<String, MemberList<PistonType>>> =
         DependentQuery(versionData) { key: FileHandle ->
             val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
@@ -77,7 +79,7 @@ class PistonLanguageHandler(
             res.mapValues { (_, list) -> list.toImmutable() }
         }
 
-    override val childItems: DependentQuery<MemberHandle, Map<String, MemberList<PistonType>>> =
+    override val childItems: Query<MemberHandle, Map<String, MemberList<PistonType>>> =
         DependentQuery(versionData) fn@{ key: MemberHandle ->
             val res = mutableMapOf<String, MutableMemberList<PistonType>>()
 
@@ -92,7 +94,7 @@ class PistonLanguageHandler(
             res.mapValues { (_, list) -> list.toImmutable() }
         }
 
-    override val typeParams: DependentQuery<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> =
+    override val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<PistonType>>>> =
         DependentQuery(versionData) fn@{ key: MemberHandle ->
             (astNode[key] ?: return@fn emptyList())
                 .firstDirectRawChildOr(PistonType.typeParams) { return@fn emptyList<Pair<String, RelativeNodeLoc<PistonType>>>() }
@@ -102,7 +104,7 @@ class PistonLanguageHandler(
                 .toList()
         }
 
-    val fileImportData: DependentQuery<FileHandle, ImportData> =
+    val fileImportData: Query<FileHandle, ImportData> =
         DependentQuery(versionData) fn@{ key: FileHandle ->
             val fileAst = ast[key]
 
@@ -295,14 +297,14 @@ class PistonLanguageHandler(
         res.getOrPut(name) { MutableMemberList() }.add(type, loc)
     }
 
-    override val constructors: DependentQuery<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> =
+    override val constructors: Query<MultiInstanceClassHandle, List<RelativeNodeLoc<PistonType>>> =
         DependentQuery(versionData) fn@{ key: MultiInstanceClassHandle ->
             (astNode[key] ?: return@fn emptyList())
                 .firstDirectChildOr(PistonType.functionParams) { return@fn emptyList<RelativeNodeLoc<PistonType>>() }
                 .let { listOf(it.parentRelativeLocation) }
         }
 
-    val supertypes: DependentQuery<NewTypeHandle, SupertypeData> =
+    override val supertypes: Query<NewTypeHandle, SupertypeData> =
         DependentQuery(versionData) fn@{ key: NewTypeHandle ->
             val node = (astNode[key] ?: return@fn errorSupertypeData)
                 .firstDirectRawChildOr(PistonType.supertypes) { return@fn emptySuperTypeData }
@@ -320,7 +322,7 @@ class PistonLanguageHandler(
             if (types.isEmpty()) emptySuperTypeData else SupertypeData(deps, types.assertNonEmpty())
         }
 
-    val returnType: DependentQuery<TypedHandle, ReturnData> =
+    val returnType: Query<TypedHandle, ReturnData> =
         DependentQuery(versionData) fn@{ key: TypedHandle ->
             val node = (astNode[key] ?: return@fn errorReturnData)
                 .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn unitReturnData }
@@ -335,7 +337,7 @@ class PistonLanguageHandler(
             ReturnData(deps, type)
         }
 
-    val params: DependentQuery<ParameterizedHandle, ParamData> =
+    val params: Query<ParameterizedHandle, ParamData> =
         DependentQuery(versionData) fn@{ key: ParameterizedHandle ->
             val node = astNode[key]
                 ?.firstDirectRawChild(PistonType.functionParams)

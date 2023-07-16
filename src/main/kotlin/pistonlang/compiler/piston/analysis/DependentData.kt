@@ -1,9 +1,10 @@
 package pistonlang.compiler.piston.analysis
 
 import pistonlang.compiler.common.items.Dependent
-import pistonlang.compiler.common.items.TypeInstance
-import pistonlang.compiler.common.items.TypeParamHandle
-import pistonlang.compiler.common.items.errorInstance
+import pistonlang.compiler.common.main.anyInstance
+import pistonlang.compiler.common.main.unitInstance
+import pistonlang.compiler.common.types.TypeInstance
+import pistonlang.compiler.common.types.errorInstance
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.NonEmptyList
 import pistonlang.compiler.util.nonEmptyListOf

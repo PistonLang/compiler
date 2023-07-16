@@ -9,8 +9,6 @@ sealed interface Handle
  */
 sealed interface ParentHandle : Handle {
     val isFile: Boolean get() = false
-
-    fun findFile(): FileHandle
 }
 
 /**
@@ -27,8 +25,6 @@ sealed interface ChildHandle : Handle {
 value class FileHandle(val path: String) : ParentHandle {
     override val isFile: Boolean
         get() = true
-
-    override fun findFile(): FileHandle = this
 }
 
 /**
@@ -64,8 +60,6 @@ sealed interface MemberHandle : ParentHandle, ItemHandle, ChildHandle {
     val name: String
     val memberType: MemberType
     val id: Int
-
-    override fun findFile(): FileHandle = parent.findFile()
 }
 
 /**

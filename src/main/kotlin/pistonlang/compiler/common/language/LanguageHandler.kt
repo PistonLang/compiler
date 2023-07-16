@@ -2,18 +2,43 @@ package pistonlang.compiler.common.language
 
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.parser.RelativeNodeLoc
-import pistonlang.compiler.common.parser.nodes.GreenNode
-import pistonlang.compiler.common.queries.DependentQuery
+import pistonlang.compiler.common.queries.Query
+import pistonlang.compiler.common.types.TypeInstance
+import pistonlang.compiler.piston.parser.PistonType
+import pistonlang.compiler.util.NonEmptyList
 
 /**
  * A [LanguageHandler] handles language specific queries, as opposed to
  * a [pistonlang.compiler.common.main.CompilerInstance] which handles general queries
  */
 interface LanguageHandler<Type : SyntaxType> {
+    /**
+     * List of file extensions that correspond to this handler
+     */
     val extensions: List<String>
-    val ast: DependentQuery<FileHandle, GreenNode<Type>>
-    val fileItems: DependentQuery<FileHandle, Map<String, MemberList<Type>>>
-    val typeParams: DependentQuery<MemberHandle, List<Pair<String, RelativeNodeLoc<Type>>>>
-    val childItems: DependentQuery<MemberHandle, Map<String, MemberList<Type>>>
-    val constructors: DependentQuery<MultiInstanceClassHandle, List<RelativeNodeLoc<Type>>>
+
+    /**
+     * List of items contained in a file
+     */
+    val fileItems: Query<FileHandle, Map<String, MemberList<Type>>>
+
+    /**
+     * List of type params
+     */
+    val typeParams: Query<MemberHandle, List<Pair<String, RelativeNodeLoc<Type>>>>
+
+    /**
+     * List of children of a given item
+     */
+    val childItems: Query<MemberHandle, Map<String, MemberList<Type>>>
+
+    /**
+     * List of constructors of a class
+     */
+    val constructors: Query<MultiInstanceClassHandle, List<RelativeNodeLoc<Type>>>
+
+    /**
+     * List of supertypes of a declared type
+     */
+    val supertypes: Query<NewTypeHandle, Dependent<PistonType, NonEmptyList<TypeInstance>>>
 }

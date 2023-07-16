@@ -1,6 +1,7 @@
 package pistonlang.compiler.piston.analysis
 
 import pistonlang.compiler.common.items.ItemHandle
+import pistonlang.compiler.common.main.stlItems
 import pistonlang.compiler.util.EmptyIterator
 import pistonlang.compiler.util.EmptySequence
 import pistonlang.compiler.util.SingletonIterator

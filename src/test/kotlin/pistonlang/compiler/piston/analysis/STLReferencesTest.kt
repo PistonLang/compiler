@@ -2,6 +2,7 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.main.stlItems
 import kotlin.test.assertEquals
 
 class STLReferencesTest {
