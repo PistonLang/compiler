@@ -4,34 +4,39 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
-import pistonlang.compiler.common.items.NewTypeHandle
-import pistonlang.compiler.common.items.TypeHandle
-import pistonlang.compiler.common.items.TypeParamHandle
+import pistonlang.compiler.common.items.TypeParamId
+import pistonlang.compiler.common.items.handles.TypeHandle
+import pistonlang.compiler.common.main.MainInterners
 
-data class TypeDAGNode<out HandleType>(
+data class TypeDAGNode(
     val args: List<TypeInstance>,
-    val parents: PersistentSet<HandleType>
+    val parents: PersistentSet<TypeHandle>
 )
 
-data class TypeDAG<out HandleType : TypeHandle>(
-    val lowest: PersistentSet<HandleType>,
-    val nodes: PersistentMap<TypeHandle, TypeDAGNode<HandleType>>
+data class TypeDAG(
+    val lowest: PersistentSet<TypeHandle>,
+    val nodes: PersistentMap<TypeHandle, TypeDAGNode>
 )
 
-typealias SupertypeDAG = TypeDAG<NewTypeHandle>
+val emptyTypeDAG: TypeDAG = TypeDAG(persistentSetOf(), persistentMapOf())
 
-val emptyTypeDAG: TypeDAG<Nothing> = TypeDAG(persistentSetOf(), persistentMapOf())
-
-tailrec fun <T : TypeHandle> Map<TypeHandle, TypeDAGNode<T>>.resolveParam(
-    param: TypeParamHandle,
-    nullable: Boolean
+tailrec fun Map<TypeHandle, TypeDAGNode>.resolveParam(
+    param: TypeParamId,
+    nullable: Boolean,
+    interners: MainInterners,
 ): TypeInstance {
-    val parent = param.parent
+    val paramHandle = interners.typeParamIds[param]
+    val parent = paramHandle.parent
 
-    if (parent !is TypeHandle || parent !in this)
-        return TypeInstance(param, emptyList(), nullable)
+    if (interners.memberIds[parent].type.newType)
+        return TypeInstance(TypeHandle(param), emptyList(), nullable)
 
-    val instance = this[parent]!!.args[param.id]
+    val handle = TypeHandle(interners.typeIds[parent])
+
+    if (handle !in this)
+        return TypeInstance(TypeHandle(param), emptyList(), nullable)
+
+    val instance = this[handle]!!.args[paramHandle.index]
     val type = instance.type
-    return if (type is TypeParamHandle) resolveParam(type, nullable || instance.nullable) else instance
+    return resolveParam(type.asTypeParam ?: return instance, nullable || instance.nullable, interners)
 }

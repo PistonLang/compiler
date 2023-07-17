@@ -4,7 +4,7 @@ import pistonlang.compiler.common.items.Dependent
 import pistonlang.compiler.common.main.anyInstance
 import pistonlang.compiler.common.main.unitInstance
 import pistonlang.compiler.common.types.TypeInstance
-import pistonlang.compiler.common.types.errorInstance
+import pistonlang.compiler.common.types.unknownInstance
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.NonEmptyList
 import pistonlang.compiler.util.nonEmptyListOf
@@ -15,12 +15,12 @@ val emptyImportData = ImportData(emptyList(), emptyMap())
 
 typealias SupertypeData = Dependent<PistonType, NonEmptyList<TypeInstance>>
 
-val errorSupertypeData = SupertypeData(emptyList(), nonEmptyListOf(errorInstance))
+val errorSupertypeData = SupertypeData(emptyList(), nonEmptyListOf(unknownInstance))
 val emptySuperTypeData = SupertypeData(emptyList(), nonEmptyListOf(anyInstance))
 
 typealias ReturnData = Dependent<PistonType, TypeInstance>
 
-val errorReturnData = ReturnData(emptyList(), errorInstance)
+val errorReturnData = ReturnData(emptyList(), unknownInstance)
 val unitReturnData = ReturnData(emptyList(), unitInstance)
 
 typealias ParamData = Dependent<PistonType, List<TypeInstance>>

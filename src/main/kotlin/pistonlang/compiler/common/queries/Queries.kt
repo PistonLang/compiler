@@ -1,8 +1,10 @@
 package pistonlang.compiler.common.queries
 
+import pistonlang.compiler.common.items.Id
+import pistonlang.compiler.common.items.IdList
+import pistonlang.compiler.common.items.UnitId
 import pistonlang.compiler.util.contextMember
 import java.util.concurrent.ConcurrentHashMap
-
 
 data class InputQueryValue<out V>(
     val modified: QueryVersion,
@@ -27,7 +29,7 @@ data object InProgressQueryValue : DependentQueryValue<Nothing> {
 }
 
 
-sealed interface Query<in K, out V> {
+sealed interface Query<in K: Id, out V> {
     context(QueryAccessor)
     operator fun get(key: K): V
 
@@ -35,7 +37,7 @@ sealed interface Query<in K, out V> {
     fun lastModified(key: K): QueryVersion
 }
 
-class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting: V) : Query<Unit, V> {
+class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting: V) : Query<UnitId, V> {
     private var updated = versionData.current
 
     var value = starting
@@ -44,21 +46,24 @@ class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting
             field = new
         }
 
-    context(QueryAccessor) override fun get(key: Unit): V = run {
-        contextMember<QueryAccessor>().addDependency(QueryKey(this, Unit))
+    context(QueryAccessor)
+    override fun get(key: UnitId): V = run {
+        contextMember<QueryAccessor>().addDependency(QueryKey(this, UnitId))
         value
     }
 
-    override fun lastModified(key: Unit): QueryVersion = updated
+    override fun lastModified(key: UnitId): QueryVersion = updated
 }
 
-class InputQuery<in K, V>(private val versionData: QueryVersionData, private val default: () -> V) : Query<K, V> {
-    private val backing: MutableMap<K, InputQueryValue<V>> = ConcurrentHashMap<K, InputQueryValue<V>>()
+class InputQuery<in K: Id, V>(private val versionData: QueryVersionData, private val default: () -> V) : Query<K, V> {
+    private val backing: IdList<K, InputQueryValue<V>> = IdList()
 
-    operator fun contains(key: K) = backing.contains(key)
+    operator fun contains(key: K) = backing[key] != null
 
-    private fun getFull(key: K): InputQueryValue<V> = run {
-        backing.getOrPut(key) { InputQueryValue(versionData.current, default()) }
+    private fun getFull(key: K): InputQueryValue<V> = backing[key] ?: run {
+        val result = InputQueryValue(versionData.current, default())
+        backing[key] = result
+        result
     }
 
     context(QueryAccessor)
@@ -75,14 +80,14 @@ class InputQuery<in K, V>(private val versionData: QueryVersionData, private val
     }
 }
 
-class DependentQuery<in K, out V>(
+class DependentQuery<in K: Id, out V>(
     private val versionData: QueryVersionData,
     private val equalityFun: (old: V, new: V) -> Boolean = { a, b -> a == b },
     private val cycleHandler: (key: K) -> V = { error("Unexpected cycle") },
     private val updateFn: (QueryAccessor.(key: K, oldValue: V) -> V)? = null,
     private val computeFn: QueryAccessor.(key: K) -> V,
 ) : Query<K, V> {
-    private val backing: MutableMap<K, DependentQueryValue<V>> = ConcurrentHashMap()
+    private val backing: IdList<K, DependentQueryValue<V>> = IdList()
 
     private fun getFull(key: K): ComputedQueryValue<V> = run nested@{
         val version = versionData.current
@@ -140,7 +145,7 @@ class DependentQuery<in K, out V>(
     }
 }
 
-data class QueryKey<K, out V>(val query: Query<K, V>, val key: K) {
+data class QueryKey<K: Id, out V>(val query: Query<K, V>, val key: K) {
     fun lastModified() = query.lastModified(key)
 }
 

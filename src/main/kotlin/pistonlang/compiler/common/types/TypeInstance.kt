@@ -1,8 +1,8 @@
 package pistonlang.compiler.common.types
 
-import pistonlang.compiler.common.items.ErrorHandle
-import pistonlang.compiler.common.items.TypeHandle
+import pistonlang.compiler.common.items.handles.TypeError
+import pistonlang.compiler.common.items.handles.TypeHandle
 
 data class TypeInstance(val type: TypeHandle, val args: List<TypeInstance>, val nullable: Boolean)
 
-val errorInstance = TypeInstance(ErrorHandle, emptyList(), false)
+val unknownInstance = TypeInstance(TypeHandle(TypeError.UnknownType), emptyList(), false)

@@ -3,15 +3,15 @@ package pistonlang.compiler.common.items
 import pistonlang.compiler.common.language.SyntaxType
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 
-enum class MemberType(val item: ItemType, val buildHandle: (ParentHandle, String, Int) -> MemberHandle) {
-    MultiInstanceClass(ItemType.MultiInstanceClass, ::MultiInstanceClassHandle),
-    SingletonClass(ItemType.SingletonClass, ::SingletonClassHandle),
-    Trait(ItemType.Trait, ::TraitHandle),
-    Val(ItemType.Val, ::ValHandle),
-    Var(ItemType.Var, ::VarHandle),
-    Function(ItemType.Function, ::FunctionHandle),
-    Getter(ItemType.Getter, ::GetterHandle),
-    Setter(ItemType.Setter, ::SetterHandle),
+enum class MemberType(val newType: Boolean = false) {
+    MultiInstanceClass(newType = true),
+    SingletonClass(newType = true),
+    Trait(newType = true),
+    Val,
+    Var,
+    Function,
+    Getter,
+    Setter,
 }
 
 @JvmInline

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.items.handles.TypeParamHandle
 import pistonlang.compiler.common.main.hierarchyIterator
 import pistonlang.compiler.common.main.unitInstance
 import pistonlang.compiler.common.parser.NodeLocation
