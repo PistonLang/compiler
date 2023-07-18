@@ -1,23 +1,22 @@
 package pistonlang.compiler.piston.analysis
 
+import pistonlang.compiler.common.files.PackagePath
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.items.*
-import pistonlang.compiler.common.items.handles.ItemHandle
 import pistonlang.compiler.common.items.handles.ItemType
 import pistonlang.compiler.common.items.handles.MemberHandle
 import pistonlang.compiler.common.items.handles.ParentHandle
+import pistonlang.compiler.common.items.handles.asItem
 import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.main.FileInputQueries
-import pistonlang.compiler.common.main.GeneralQueries
-import pistonlang.compiler.common.main.PathInterners
+import pistonlang.compiler.common.main.MainInterners
+import pistonlang.compiler.common.main.MainQueries
+import pistonlang.compiler.common.main.hierarchyMemberIterator
 import pistonlang.compiler.common.parser.Lexer
 import pistonlang.compiler.common.parser.Parser
 import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.*
-import pistonlang.compiler.common.queries.DependentQuery
-import pistonlang.compiler.common.queries.Query
-import pistonlang.compiler.common.queries.QueryAccessor
-import pistonlang.compiler.common.queries.QueryVersionData
+import pistonlang.compiler.common.queries.*
 import pistonlang.compiler.common.types.TypeInstance
 import pistonlang.compiler.common.types.unknownInstance
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
@@ -36,10 +35,30 @@ class PistonLanguageHandler(
     parsing: (Parser<PistonType>) -> GreenNode<PistonType>,
     versionData: QueryVersionData,
     private val inputQueries: FileInputQueries,
-    private val generalQueries: GeneralQueries,
-    private val pathInterners: PathInterners,
+    private val mainQueries: MainQueries,
+    private val interners: MainInterners,
 ) : LanguageHandler<PistonType> {
     override val extensions: List<String> = listOf("pi")
+
+    private val constants: SingletonQuery<PistonConstants> = DependentSingletonQuery(versionData) {
+        val defaultImports = interners.packIds[PackagePath("piston")]
+            .hierarchyMemberIterator(interners, mainQueries)
+            .asSequence()
+            .groupBy({ interners.memberIds.getKey(it).name }, { it.asItem() })
+
+        val stlTypes = mainQueries.stlTypes.value
+
+        PistonConstants(
+            baseScope = StaticScope(null, defaultImports),
+            emptyImportData = ImportData(emptyList(), emptyMap()),
+            errorSupertypeData = SupertypeData(emptyList(), nonEmptyListOf(unknownInstance)),
+            emptySupertypeData = SupertypeData(emptyList(), nonEmptyListOf(stlTypes.anyInstance)),
+            errorReturnData = ReturnData(emptyList(), unknownInstance),
+            unitReturnData = ReturnData(emptyList(), stlTypes.unitInstance),
+            emptyParamData = ParamData(emptyList(), emptyList()),
+            emptyTypeBoundData = TypeBoundData(emptyList(), emptyList())
+        )
+    }
 
     private val ast: DependentQuery<FileId, GreenNode<PistonType>> =
         DependentQuery(versionData, equalityFun = { _, _ -> false }) { key ->
@@ -52,7 +71,7 @@ class PistonLanguageHandler(
 
     context(QueryAccessor)
     private fun getASTNode(key: MemberId): GreenNode<PistonType>? {
-        val handle = generalQueries.interners.memberIds[key]
+        val handle = interners.memberIds.getKey(key)
 
         return handle.parent.match(
             onFile = { parent ->
@@ -115,13 +134,13 @@ class PistonLanguageHandler(
         val fileAst = ast[key]
 
         val importNode = fileAst
-            .firstDirectRawChildOr(PistonType.import) { return@fn emptyImportData }
-            .firstDirectRawChildOr(PistonType.importGroup) { return@fn emptyImportData }
+            .firstDirectRawChildOr(PistonType.import) { return@fn constants.value.emptyImportData }
+            .firstDirectRawChildOr(PistonType.importGroup) { return@fn constants.value.emptyImportData }
             .asRoot()
 
         val deps = mutableListOf<HandleData<PistonType>>()
         val nameMap = hashMapOf<String, MutableList<Int>>()
-        handleImportGroup(pathInterners.packIds[rootPackage], importNode, deps, nameMap)
+        handleImportGroup(interners.packIds[rootPackage], importNode, deps, nameMap)
 
         ImportData(deps, nameMap)
     }
@@ -178,13 +197,13 @@ class PistonLanguageHandler(
         }
 
         val newName = identNode.content
-        val subpackage = generalQueries.packageHandleNode[currPackage].children[newName]
+        val subpackage = mainQueries.packageHandleNode[currPackage].children[newName]
 
         return if (subpackage == null) {
             deps.add(HandleData(identNode.location, invalidPathHandleList))
             return null
         } else {
-            deps.add(HandleData(identNode.location, nonEmptyListOf(ItemHandle(subpackage))))
+            deps.add(HandleData(identNode.location, nonEmptyListOf(subpackage.asItem())))
             subpackage
         }
     }
@@ -216,7 +235,7 @@ class PistonLanguageHandler(
         }
 
         val newName = identNode.content
-        val handleList = generalQueries.packageItems[currPackage][newName]
+        val handleList = mainQueries.packageItems[currPackage][newName]
         val handles = handleList?.assertNonEmpty() ?: invalidPathHandleList
         deps.add(HandleData(identNode.location, handles))
         nameMap.getOrPut(newName) { mutableListOf() }.add(index)
@@ -305,7 +324,7 @@ class PistonLanguageHandler(
 
     override val constructors: Query<TypeId, List<RelativeNodeLoc<PistonType>>> =
         DependentQuery(versionData) fn@{ key ->
-            val memberId = generalQueries.interners.typeIds[key]
+            val memberId = interners.typeIds.getKey(key)
             (astNode[memberId] ?: return@fn emptyList())
                 .firstDirectChildOr(PistonType.functionParams) { return@fn emptyList<RelativeNodeLoc<PistonType>>() }
                 .let { listOf(it.parentRelativeLocation) }
@@ -313,11 +332,12 @@ class PistonLanguageHandler(
 
     override val supertypes: Query<TypeId, SupertypeData> =
         DependentQuery(versionData) fn@{ key ->
-            val memberId = generalQueries.interners.typeIds[key]
+            val memberId = interners.typeIds.getKey(key)
+            val consts = constants.value
 
-            val node = (astNode[memberId] ?: return@fn errorSupertypeData)
-                .firstDirectRawChildOr(PistonType.supertypes) { return@fn emptySuperTypeData }
-                .firstDirectRawChildOr(PistonType.intersectionType) { return@fn errorSupertypeData }
+            val node = (astNode[memberId] ?: return@fn consts.errorSupertypeData)
+                .firstDirectRawChildOr(PistonType.supertypes) { return@fn consts.emptySupertypeData }
+                .firstDirectRawChildOr(PistonType.intersectionType) { return@fn consts.errorSupertypeData }
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
@@ -328,14 +348,16 @@ class PistonLanguageHandler(
                 .map { handleTypeNode(it, deps, scope, false) }
                 .toList()
 
-            if (types.isEmpty()) emptySuperTypeData else SupertypeData(deps, types.assertNonEmpty())
+            if (types.isEmpty()) consts.emptySupertypeData else SupertypeData(deps, types.assertNonEmpty())
         }
 
     val returnType: Query<MemberId, ReturnData> =
         DependentQuery(versionData) fn@{ key ->
-            val node = (astNode[key] ?: return@fn errorReturnData)
-                .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn unitReturnData }
-                .firstDirectRawChildOr(PistonSyntaxSets.types) { return@fn errorReturnData }
+            val consts = constants.value
+
+            val node = (astNode[key] ?: return@fn consts.errorReturnData)
+                .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn consts.unitReturnData }
+                .firstDirectRawChildOr(PistonSyntaxSets.types) { return@fn consts.errorReturnData }
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
@@ -351,7 +373,7 @@ class PistonLanguageHandler(
             val node = astNode[key]
                 ?.firstDirectRawChild(PistonType.functionParams)
                 ?.asRoot()
-                ?: return@fn emptyParamData
+                ?: return@fn constants.value.emptyParamData
 
             val deps = mutableListOf<HandleData<PistonType>>()
             val scope = typeParamScope[key]
@@ -371,8 +393,8 @@ class PistonLanguageHandler(
         }
 
     val typeParamBounds: DependentQuery<MemberId, TypeBoundData> = DependentQuery(versionData) fn@{ key ->
-        val params = generalQueries.typeParams[key].nameMap
-        if (params.isEmpty()) return@fn emptyTypeBoundData
+        val params = mainQueries.typeParams[key].nameMap
+        if (params.isEmpty()) return@fn constants.value.emptyTypeBoundData
         val node = astNode[key]!!
             .firstDirectRawChild(PistonType.typeParams)!!
             .firstDirectRawChildOr(PistonType.typeGuard) {
@@ -392,12 +414,12 @@ class PistonLanguageHandler(
                 val ident = bound.firstDirectChild(PistonType.identifier) ?: return@forEach
                 val name = ident.content
                 val param = params[name]?.first() ?: return@forEach
-                deps.add(HandleData(ident.location, nonEmptyListOf(ItemHandle(param))))
+                deps.add(HandleData(ident.location, nonEmptyListOf(param.asItem())))
                 val typeNode = bound.firstDirectChild(PistonSyntaxSets.types)
                 val instance =
                     if (typeNode == null) unknownInstance
                     else handleTypeNode(typeNode, deps, scope, false)
-                val index = generalQueries.interners.typeParamIds[param].index
+                val index = interners.typeParamIds.getKey(param).index
                 res[index].add(instance)
             }
 
@@ -466,16 +488,16 @@ class PistonLanguageHandler(
                 .firstDirectChildOr(PistonType.pathSegment) { return unknownInstance }
                 .firstDirectChildOr(PistonType.identifier) { return unknownInstance }
 
-            pack = generalQueries.packageHandleNode[pack].children[identNode.content] ?: return unknownInstance
+            pack = mainQueries.packageHandleNode[pack].children[identNode.content] ?: return unknownInstance
 
-            deps.add(HandleData(identNode.location, nonEmptyListOf(ItemHandle(pack))))
+            deps.add(HandleData(identNode.location, nonEmptyListOf(pack.asItem())))
 
             currNode = currNode.parent!!
             level -= 1
         }
 
         val lastSegment = currNode.firstDirectChild(PistonType.pathSegment) ?: return unknownInstance
-        val packScope = StaticScope(null, generalQueries.packageItems[pack])
+        val packScope = StaticScope(null, mainQueries.packageItems[pack])
         return handlePathSegmentType(lastSegment, packScope, deps, nullable)
     }
 
@@ -490,7 +512,7 @@ class PistonLanguageHandler(
         val types = scope.find(ident.content) { item ->
             item.match(
                 onPackage = { false },
-                onMember = { generalQueries.interners.memberIds[it].type.newType },
+                onMember = { interners.memberIds.getKey(it).type.newType },
                 onTypeParam = { true },
                 onError = { false }
             )
@@ -515,7 +537,7 @@ class PistonLanguageHandler(
 
         val first = types.first()
 
-        val expectedArgs = first.asMember?.let { generalQueries.typeParams[it].ids.size } ?: 0
+        val expectedArgs = first.asMember?.let { mainQueries.typeParams[it].ids.size } ?: 0
 
         // TODO: Keep track of errors
         val endArgs = when {
@@ -524,7 +546,7 @@ class PistonLanguageHandler(
             else -> args
         }
 
-        return TypeInstance(first.toTypeHandle(generalQueries.interners)!!, endArgs, nullable)
+        return TypeInstance(first.toTypeHandle(interners)!!, endArgs, nullable)
     }
 
     context(QueryAccessor)
@@ -550,24 +572,24 @@ class PistonLanguageHandler(
 
     private val fileScope: Query<FileId, Scope> = DependentQuery(versionData) { key ->
         val pack = inputQueries.filePackage[key]!!
-        val packItems = generalQueries.packageItems[pack]
+        val packItems = mainQueries.packageItems[pack]
         val importData = fileImportData[key]
-        val packScope = StaticScope(BaseScope, packItems)
+        val packScope = StaticScope(constants.value.baseScope, packItems)
 
         ImportScope(packScope, importData)
     }
 
     private val staticScopeWithTypeParams: Query<MemberId, Scope> = DependentQuery(versionData) { key ->
         val parentScope = typeParamScope[key]
-        val items = generalQueries.childItems[key].mapValues { (_, value) -> value.map(::ItemHandle) }
+        val items = mainQueries.childItems[key].mapValues { (_, value) -> value.map { it.asItem() } }
 
         StaticTypeScope(parentScope, items)
     }
 
     private val staticScopeWithoutTypeParams: Query<MemberId, Scope> = DependentQuery(versionData) { key ->
-        val instance = generalQueries.interners.memberIds[key]
+        val instance = interners.memberIds.getKey(key)
         val parentScope = getStaticParentScope(instance.parent, false)
-        val items = generalQueries.childItems[key].mapValues { (_, value) -> value.map(::ItemHandle) }
+        val items = mainQueries.childItems[key].mapValues { (_, value) -> value.map { it.asItem() } }
 
         StaticTypeScope(parentScope, items)
     }
@@ -579,11 +601,11 @@ class PistonLanguageHandler(
     )
 
     private val typeParamScope: Query<MemberId, Scope> = DependentQuery(versionData) { key ->
-        val handle = generalQueries.interners.memberIds[key]
+        val handle = interners.memberIds.getKey(key)
         val parent = handle.parent
 
         val parentScope = getStaticParentScope(parent, !handle.type.newType)
-        val typeParams = generalQueries.typeParams[key].nameMap.mapValues { (_, value) -> value.map(::ItemHandle) }
+        val typeParams = mainQueries.typeParams[key].nameMap.mapValues { (_, value) -> value.map { it.asItem() } }
 
         StaticScope(parentScope, typeParams)
     }

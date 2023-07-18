@@ -4,7 +4,6 @@ import pistonlang.compiler.common.items.Id
 import pistonlang.compiler.common.items.IdList
 import pistonlang.compiler.common.items.UnitId
 import pistonlang.compiler.util.contextMember
-import java.util.concurrent.ConcurrentHashMap
 
 data class InputQueryValue<out V>(
     val modified: QueryVersion,
@@ -29,33 +28,41 @@ data object InProgressQueryValue : DependentQueryValue<Nothing> {
 }
 
 
-sealed interface Query<in K: Id, out V> {
+sealed interface Query<in K : Id, out V> {
     context(QueryAccessor)
     operator fun get(key: K): V
-
 
     fun lastModified(key: K): QueryVersion
 }
 
-class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting: V) : Query<UnitId, V> {
-    private var updated = versionData.current
-
-    var value = starting
-        set(new) {
-            updated = versionData.current
-            field = new
-        }
-
+sealed interface SingletonQuery<out V> : Query<UnitId, V> {
     context(QueryAccessor)
-    override fun get(key: UnitId): V = run {
-        contextMember<QueryAccessor>().addDependency(QueryKey(this, UnitId))
-        value
-    }
-
-    override fun lastModified(key: UnitId): QueryVersion = updated
+    val value: V
+    val lastModified: QueryVersion
+    context(QueryAccessor) override fun get(key: UnitId): V = value
+    override fun lastModified(key: UnitId): QueryVersion = lastModified
 }
 
-class InputQuery<in K: Id, V>(private val versionData: QueryVersionData, private val default: () -> V) : Query<K, V> {
+class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting: V) : SingletonQuery<V> {
+    override var lastModified = versionData.current
+        private set
+
+
+    private var backing: V = starting
+
+    fun update(new: V) {
+        lastModified = versionData.current
+        backing = new
+    }
+
+    context(QueryAccessor) override val value: V
+        get() {
+            contextMember().addDependency(QueryKey(this, UnitId))
+            return backing
+        }
+}
+
+class InputQuery<in K : Id, V>(private val versionData: QueryVersionData, private val default: () -> V) : Query<K, V> {
     private val backing: IdList<K, InputQueryValue<V>> = IdList()
 
     operator fun contains(key: K) = backing[key] != null
@@ -80,7 +87,7 @@ class InputQuery<in K: Id, V>(private val versionData: QueryVersionData, private
     }
 }
 
-class DependentQuery<in K: Id, out V>(
+class DependentQuery<in K : Id, out V>(
     private val versionData: QueryVersionData,
     private val equalityFun: (old: V, new: V) -> Boolean = { a, b -> a == b },
     private val cycleHandler: (key: K) -> V = { error("Unexpected cycle") },
@@ -113,7 +120,7 @@ class DependentQuery<in K: Id, out V>(
         backing[key] = InProgressQueryValue
 
         // If none of the dependencies have changed, we just updated the version checked
-        if (lastComputed.dependencies.isNotEmpty() && lastComputed.dependencies.all { it.lastModified() <= lastComputed.checked }) {
+        if (lastComputed.dependencies.all { it.lastModified() <= lastComputed.checked }) {
             lastComputed.copy(checked = version)
         } else {
             // The only option left is to recompute or update the value
@@ -145,7 +152,51 @@ class DependentQuery<in K: Id, out V>(
     }
 }
 
-data class QueryKey<K: Id, out V>(val query: Query<K, V>, val key: K) {
+class DependentSingletonQuery<out V>(
+    private val versionData: QueryVersionData,
+    private val equalityFun: (old: V, new: V) -> Boolean = { a, b -> a == b },
+    private val computeFn: QueryAccessor.() -> V,
+) : SingletonQuery<V> {
+    private var backing: ComputedQueryValue<V>? = null
+
+    private fun getFull(): ComputedQueryValue<V> = run nested@{
+        val version = versionData.current
+        val last = backing
+
+        if (last == null) {
+            val newDeps = mutableListOf<QueryKey<*, *>>()
+            val newValue = with(QueryAccessor(newDeps)) { computeFn() }
+            return@nested ComputedQueryValue(version, version, newValue, newDeps)
+        }
+
+        if (last.checked >= version)
+            return@nested last
+
+        if (last.dependencies.all { it.lastModified() <= version }) {
+            return last.copy(checked = version)
+        }
+
+        val newDeps = mutableListOf<QueryKey<*, *>>()
+        val newValue = with(QueryAccessor(newDeps)) { computeFn() }
+        ComputedQueryValue(
+            modified = if (equalityFun(last.value, newValue)) last.modified else version,
+            checked = version,
+            value = newValue,
+            dependencies = newDeps
+        )
+    }.also { backing = it }
+
+    override val lastModified: QueryVersion
+        get() = getFull().modified
+
+    context(QueryAccessor) override val value: V
+        get() {
+            addDependency(QueryKey(this, UnitId))
+            return getFull().value
+        }
+}
+
+data class QueryKey<K : Id, out V>(val query: Query<K, V>, val key: K) {
     fun lastModified() = query.lastModified(key)
 }
 

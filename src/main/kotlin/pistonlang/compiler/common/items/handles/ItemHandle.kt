@@ -2,6 +2,7 @@ package pistonlang.compiler.common.items.handles
 
 import pistonlang.compiler.common.items.MemberId
 import pistonlang.compiler.common.items.PackageId
+import pistonlang.compiler.common.items.Qualifiable
 import pistonlang.compiler.common.items.TypeParamId
 import pistonlang.compiler.common.main.MainInterners
 
@@ -16,16 +17,10 @@ enum class HandleError {
     InvalidPathToken
 }
 
-class ItemHandle private constructor(
+class ItemHandle internal constructor(
     @PublishedApi internal val id: Int,
     val type: ItemType
-) {
-    constructor(packId: PackageId) : this(packId.value, ItemType.Package)
-    constructor(memberId: MemberId) : this(memberId.value, ItemType.Member)
-    constructor(error: HandleError) : this(error.ordinal, ItemType.Error)
-    constructor(typeParamId: TypeParamId) : this(typeParamId.value, ItemType.TypeParam)
-
-
+) : Qualifiable {
     inline fun <T> match(
         onPackage: (PackageId) -> T,
         onMember: (MemberId) -> T,
@@ -64,9 +59,20 @@ class ItemHandle private constructor(
 
     fun toTypeHandle(interners: MainInterners): TypeHandle? = match(
         onPackage = { null },
-        onMember = { if (interners.memberIds[it].type.newType) TypeHandle(interners.typeIds[it]) else null },
-        onTypeParam = { TypeHandle(it) },
+        onMember = { interners.typeIds.getOrNull(it)?.asType() },
+        onTypeParam = { it.asType() },
         onError = { null }
+    )
+
+    override fun qualify(interners: MainInterners): String = match(
+        onMember = { it.qualify(interners) },
+        onTypeParam = { it.qualify(interners) },
+        onPackage = { it.qualify(interners) },
+        onError = { it.toString() }
     )
 }
 
+fun PackageId.asItem() = ItemHandle(value, ItemType.Package)
+fun MemberId.asItem() = ItemHandle(value, ItemType.Member)
+fun TypeParamId.asItem() = ItemHandle(value, ItemType.TypeParam)
+fun HandleError.asItem() = ItemHandle(ordinal, ItemType.Error)

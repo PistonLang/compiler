@@ -6,12 +6,8 @@ import pistonlang.compiler.common.files.PackageTree
 import pistonlang.compiler.common.files.invalidFileData
 import pistonlang.compiler.common.items.FileId
 import pistonlang.compiler.common.items.PackageId
-import pistonlang.compiler.common.items.UnitId
 import pistonlang.compiler.common.language.LanguageHandler
-import pistonlang.compiler.common.queries.InputQuery
-import pistonlang.compiler.common.queries.Query
-import pistonlang.compiler.common.queries.QueryVersionData
-import pistonlang.compiler.common.queries.SingletonInputQuery
+import pistonlang.compiler.common.queries.*
 
 interface FileInputQueries {
     val filePackage: Query<FileId, PackageId?>
@@ -19,7 +15,7 @@ interface FileInputQueries {
 }
 
 interface InputQueries : FileInputQueries {
-    val packageTree: Query<UnitId, PackageTree>
+    val packageTree: SingletonQuery<PackageTree>
     val fileHandler: Query<FileId, LanguageHandler<*>?>
 }
 

@@ -1,21 +1,20 @@
 package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertAll
 import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.MemberType
-import pistonlang.compiler.common.items.MultiInstanceClassHandle
-import pistonlang.compiler.common.parser.NodeLocation
-import pistonlang.compiler.piston.parser.PistonType
+import pistonlang.compiler.common.items.qualify
+import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
 class ConstructorTest {
-    private val tree = virtualTree<Pair<String, List<NodeLocation<PistonType>>>> {
+    private val tree = virtualTree {
         data("func.pi") {
             """
                 def func[A where A <: Int32](a: A, b: Int32): Int32 = a + b
-            """.trimIndent() to emptyList()
+            """.trimIndent()
         }
 
         data("class.pi") {
@@ -25,7 +24,7 @@ class ConstructorTest {
                     
                     def foo() = println(t.toString())
                 }
-            """.trimIndent() to listOf(NodeLocation(pos = 12..18, PistonType.functionParams))
+            """.trimIndent()
         }
         data("trait.pi") {
             """
@@ -34,26 +33,31 @@ class ConstructorTest {
                     
                     def bar: Int32 = 10
                 }
-            """.trimIndent() to emptyList()
+            """.trimIndent()
         }
     }
+
+    val expected = """
+        
+    """.trimIndent()
 
     @Test
     fun testChildItems() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
+        val interners = instance.interners
+        instance.add(stlTree)
 
-        instance.add(tree.mapValues { it.first })
-        instance.access {
-            assertAll(tree.map { (file, data) ->
-                {
-                    val expected = data.second
-                    handler.fileItems[file].iteratorFor(MemberType.MultiInstanceClass).forEach { (name) ->
-                        val ref = MultiInstanceClassHandle(file, name, 0)
-                        assertEquals(expected, handler.constructors[ref])
-                    }
-                }
-            })
+        instance.add(tree)
+        val got = instance.access { queries ->
+            interners
+                .packIds[rootPackage]
+                .hierarchyMemberIterator(interners, queries)
+                .asSequence()
+                .mapNotNull { interners.typeIds.getOrNull(it) }
+                .map { it to handler.constructors[it] }
+                .joinToString("\n") { it.qualify(interners) }
         }
+        assertEquals(expected, got)
     }
 }

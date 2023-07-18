@@ -1,8 +1,7 @@
-package pistonlang.compiler.piston.analysis
+package pistonlang.compiler.common.main.stl
 
 import pistonlang.compiler.common.files.VirtualPackageTree
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.*
 
 val stlTree: VirtualPackageTree<String> = virtualTree {
     child("piston") {
@@ -125,17 +124,6 @@ val stlTree: VirtualPackageTree<String> = virtualTree {
         data("tuples.pi") {
             """
                 class Unit
-                
-                class Pair[A, B](first: A, second: B) {
-                    val first: A = first
-                    val second: B = second
-                }
-                
-                class Triple[A, B, C](first: A, second: B, third: C) {
-                    val first: A = first
-                    val second: B = second
-                    val third: C = third
-                }
             """.trimIndent()
         }
         data("arrays.pi") {

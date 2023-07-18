@@ -5,6 +5,8 @@ import org.junit.jupiter.api.assertAll
 import pistonlang.compiler.common.files.VirtualPackageTree
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.virtualTree
+import pistonlang.compiler.common.items.qualify
+import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
 class ImportsTest {
@@ -45,12 +47,15 @@ class ImportsTest {
     fun testImports() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
+        val interners = instance.interners
+        instance.add(stlTree)
 
         instance.add(tree.mapValues { it.first })
         instance.access {
             assertAll(tree.map { (file, data) ->
                 {
-                    assertEquals(data.second, handler.fileImportData[file].toString())
+                    val id = interners.fileIds[file]
+                    assertEquals(data.second, handler.fileImportData[id].qualify(interners))
                 }
             })
         }

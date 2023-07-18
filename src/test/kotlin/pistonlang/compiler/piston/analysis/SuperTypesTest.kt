@@ -2,9 +2,10 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.NewTypeHandle
-import pistonlang.compiler.common.items.rootPackage
+import pistonlang.compiler.common.items.qualify
+import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
 class SuperTypesTest {
@@ -45,18 +46,22 @@ class SuperTypesTest {
     fun testChildItems() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
+        val interners = instance.interners
+        instance.add(stlTree)
 
         instance.add(tree)
         val value = instance.access { queries ->
             queries
-                .packageItems[rootPackage]
+                .packageItems[interners.packIds[rootPackage]]
                 .asSequence()
                 .flatMap { (_, values) ->
-                    values
-                        .filter { it.itemType.type }
-                        .map { key -> key to handler.supertypes[key as NewTypeHandle] }
+                    values.mapNotNull { key ->
+                        val memberId = key.asMember ?: return@mapNotNull null
+                        val typeId = interners.typeIds.getOrNull(memberId) ?: return@mapNotNull null
+                        key to handler.supertypes[typeId]
+                    }
                 }
-                .joinToString(separator = "\n")
+                .joinToString(separator = "\n") { it.qualify(interners) }
         }
 
         assertEquals(expected, value)

@@ -2,32 +2,53 @@ package pistonlang.compiler.common.main
 
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
+import pistonlang.compiler.common.files.PackagePath
 import pistonlang.compiler.common.files.PackageTreeNode
-import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.items.MemberId
+import pistonlang.compiler.common.items.MemberType
+import pistonlang.compiler.common.items.PackageId
+import pistonlang.compiler.common.items.TypeId
 import pistonlang.compiler.common.items.handles.*
 import pistonlang.compiler.common.language.LanguageHandler
-import pistonlang.compiler.common.queries.DependentQuery
-import pistonlang.compiler.common.queries.Query
-import pistonlang.compiler.common.queries.QueryAccessor
-import pistonlang.compiler.common.queries.QueryVersionData
+import pistonlang.compiler.common.main.stl.STLTypes
+import pistonlang.compiler.common.queries.*
 import pistonlang.compiler.common.types.*
 import java.util.*
 import kotlin.collections.ArrayDeque
 
-class GeneralQueries internal constructor(
+class MainQueries internal constructor(
     versionData: QueryVersionData,
+    private val interners: InstanceInterners,
     private val inputs: InputQueries,
 ) {
-    private val mutableInterners = DefaultInterners()
-
-    val interners: MainInterners
-        get() = mutableInterners
-
     private val childHandler: Query<MemberId, LanguageHandler<*>?> =
         DependentQuery(versionData, computeFn = ::findChildHandler)
 
+    val stlTypes: SingletonQuery<STLTypes> = DependentSingletonQuery(versionData) {
+        val pack = interners.packIds[PackagePath("piston")]
+        val items = packageItems[pack]
+
+        STLTypes(
+            int8 = getSTLType("Int8", items),
+            int16 = getSTLType("Int16", items),
+            int32 = getSTLType("Int32", items),
+            int64 = getSTLType("Int64", items),
+            float32 = getSTLType("Float32", items),
+            float64 = getSTLType("Float64", items),
+            bool = getSTLType("Bool", items),
+            char = getSTLType("Char", items),
+            string = getSTLType("String", items),
+            any = getSTLType("Any", items),
+            nothing = getSTLType("Nothing", items),
+            unit = getSTLType("Unit", items),
+        )
+    }
+
+    private fun getSTLType(name: String, items: Map<String, List<ItemHandle>>) =
+        items[name]!![0].asMember!!.let { interners.typeIds[it] }
+
     context(QueryAccessor)
-    private fun findChildHandler(id: MemberId): LanguageHandler<*>? = interners.memberIds[id].parent.match(
+    private fun findChildHandler(id: MemberId): LanguageHandler<*>? = interners.memberIds.getKey(id).parent.match(
         onFile = { inputs.fileHandler[it] },
         onMember = { childHandler[it] }
     )
@@ -35,24 +56,25 @@ class GeneralQueries internal constructor(
     val packageHandleNode: Query<PackageId, PackageTreeNode> = DependentQuery(
         versionData,
         equalityFun = { old, new -> old.lastUpdated == new.lastUpdated },
-        computeFn = { key -> inputs.packageTree[UnitId].packages[key]!! }
+        computeFn = { key -> inputs.packageTree.value.packages[key]!! }
     )
 
     val packageItems: Query<PackageId, Map<String, List<ItemHandle>>> = DependentQuery(versionData) fn@{ key ->
         val node = packageHandleNode[key]
         val res = mutableMapOf<String, MutableList<ItemHandle>>()
         node.children.forEach { (name, handle) ->
-            res.getOrPut(name) { mutableListOf() }.add(ItemHandle(handle))
+            res.getOrPut(name) { mutableListOf() }.add(handle.asItem())
         }
         node.files.forEach { file ->
             val handler = inputs.fileHandler[file] ?: return@forEach
+            val items = handler.fileItems[file]
             MemberType.entries.forEach { type ->
-                handler.fileItems[file].iteratorFor(type).forEach { (name, list) ->
+                items.iteratorFor(type).forEach { (name, list) ->
                     list.indices.forEach { index ->
-                        val reference = MemberHandle(ParentHandle(file), type, name, index)
-                        val refId = mutableInterners.memberIds.getOrAdd(reference)
-                        if (reference.type.newType) mutableInterners.typeIds.add(refId)
-                        res.getOrPut(name) { mutableListOf() }.add(ItemHandle(refId))
+                        val reference = MemberHandle(file.asParent(), type, name, index)
+                        val refId = interners.memberIds.getOrAdd(reference)
+                        if (reference.type.newType) interners.typeIds.add(refId)
+                        res.getOrPut(name) { mutableListOf() }.add(refId.asItem())
                     }
                 }
             }
@@ -66,9 +88,9 @@ class GeneralQueries internal constructor(
         MemberType.entries.forEach { type ->
             handler.childItems[key].iteratorFor(type).forEach { (name, list) ->
                 list.indices.forEach { index ->
-                    val reference = MemberHandle(ParentHandle(key), type, name, index)
-                    val refId = mutableInterners.memberIds.getOrAdd(reference)
-                    if (reference.type.newType) mutableInterners.typeIds.add(refId)
+                    val reference = MemberHandle(key.asParent(), type, name, index)
+                    val refId = interners.memberIds.getOrAdd(reference)
+                    if (reference.type.newType) interners.typeIds.add(refId)
                     res.getOrPut(name) { mutableListOf() }.add(refId)
                 }
             }
@@ -79,7 +101,7 @@ class GeneralQueries internal constructor(
     val typeParams: Query<MemberId, TypeParamData> = DependentQuery(versionData) fn@{ key ->
         val handler = childHandler[key] ?: return@fn emptyTypeParamData
         val mapped = handler.typeParams[key].mapIndexed { index, (name) ->
-            val id = mutableInterners.typeParamIds.getOrAdd(TypeParamHandle(key, index))
+            val id = interners.typeParamIds.getOrAdd(TypeParamHandle(key, index))
             name to id
         }
 
@@ -87,20 +109,20 @@ class GeneralQueries internal constructor(
     }
 
     val defaultInstance: Query<TypeId, TypeInstance> = DependentQuery(versionData) fn@{ key ->
-        val memberId = interners.typeIds[key]
-        val args = typeParams[memberId].ids.map { TypeInstance(TypeHandle(it), emptyList(), false) }
+        val memberId = interners.typeIds.getKey(key)
+        val args = typeParams[memberId].ids.map { TypeInstance(it.asType(), emptyList(), false) }
 
-        TypeInstance(TypeHandle(key), args, false)
+        TypeInstance(key.asType(), args, false)
     }
 
 
     // TODO: Handle cycles
     val supertypeDAG: Query<TypeId, TypeDAG> = DependentQuery(versionData) fn@{ key ->
-        val memberId = interners.typeIds[key]
+        val memberId = interners.typeIds.getKey(key)
         val handler = childHandler[memberId] ?: return@fn emptyTypeDAG
         val superTypes = handler.supertypes[key].data
         val typeArgs = defaultInstance[key].args
-        val handle = TypeHandle(key)
+        val handle = key.asType()
 
         val withoutCurr =
             superTypes.fold(emptyTypeDAG) { acc: TypeDAG, value: TypeInstance ->
@@ -113,7 +135,7 @@ class GeneralQueries internal constructor(
     context(QueryAccessor)
     private fun newDAGFor(instance: TypeInstance): TypeDAG? {
         val type = instance.type.asType ?: return null
-        val handle = TypeHandle(type)
+        val handle = type.asType()
         val oldDAG = supertypeDAG[type]
         return TypeDAG(
             oldDAG.lowest,
@@ -174,10 +196,10 @@ class GeneralQueries internal constructor(
 }
 
 context(QueryAccessor)
-fun PackageId.hierarchyIterator(queries: GeneralQueries) = object : Iterator<MemberId> {
+fun PackageId.hierarchyMemberIterator(interners: MainInterners, queries: MainQueries) = object : Iterator<MemberId> {
     private var iterStack = Stack<Iterator<MemberHandle>>()
     private var iter = queries
-        .packageItems[this@hierarchyIterator]
+        .packageItems[this@hierarchyMemberIterator]
         .asSequence()
         .flatMap { (_, list) -> list }
         .filterIsInstance<MemberHandle>().iterator()
@@ -205,7 +227,7 @@ fun PackageId.hierarchyIterator(queries: GeneralQueries) = object : Iterator<Mem
     }
 
     override fun next(): MemberId {
-        val res = queries.interners.memberIds[iter.next()]
+        val res = interners.memberIds[iter.next()]
         findNext(res)
         return res
     }

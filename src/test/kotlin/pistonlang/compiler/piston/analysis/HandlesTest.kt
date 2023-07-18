@@ -2,13 +2,17 @@ package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import pistonlang.compiler.common.files.FilePath
+import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.main.stl.stlTree
 import pistonlang.compiler.common.parser.NodeLocation
 import pistonlang.compiler.piston.parser.PistonType
 import kotlin.test.assertEquals
 
 class HandlesTest {
-    private val reference = FileHandle("test.pi")
+    private val reference = FilePath("test.pi")
 
     private val expectations: List<Pair<String, MemberList<PistonType>>> = listOf(
         """
@@ -61,12 +65,14 @@ class HandlesTest {
     fun testHandles() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
+        instance.add(stlTree)
 
         instance.access {
             assertAll(expectations.map { (code, expected) ->
                 {
                     instance.addFile(rootPackage, reference, code)
-                    assertEquals(expected, handler.fileItems[reference])
+                    val id = instance.interners.fileIds[reference]
+                    assertEquals(expected, handler.fileItems[id])
                 }
             })
         }

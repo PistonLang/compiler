@@ -1,10 +1,10 @@
 package pistonlang.compiler.piston.analysis
 
 import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.NewTypeHandle
-import pistonlang.compiler.common.items.rootPackage
-import pistonlang.compiler.common.main.hierarchyIterator
+import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -34,15 +34,17 @@ class SupertypeDAGTest {
     fun testSupertypeDAG() {
         val instance = defaultInstance()
         instance.addHandler(defaultHandler)
+        val interners = instance.interners
+        instance.add(stlTree)
 
         instance.add(tree)
         val value = instance.access { queries ->
-            rootPackage
-                .hierarchyIterator(queries)
+            interners.packIds[rootPackage]
+                .hierarchyMemberIterator(interners, queries)
                 .asSequence()
-                .filterIsInstance<NewTypeHandle>()
+                .mapNotNull { interners.typeIds.getOrNull(it) }
                 .map { queries.supertypeDAG[it] }
-                .joinToString(separator = "\n")
+                .joinToString(separator = "\n") { it.qualify(interners) }
         }
 
         assertEquals(expected, value)

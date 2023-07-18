@@ -1,10 +1,11 @@
 package pistonlang.compiler.piston.analysis
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertAll
 import pistonlang.compiler.common.files.add
+import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.items.MemberType
+import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
 class TypeParamsTest {
@@ -12,7 +13,7 @@ class TypeParamsTest {
         data("func.pi") {
             """
                 def func[A where A <: Int32](a: A, b: Int32): Int32 = a + b
-            """.trimIndent() to "[(A, NodeLocation(pos=1..2, type=identifier))]"
+            """.trimIndent()
         }
 
         data("class.pi") {
@@ -22,7 +23,7 @@ class TypeParamsTest {
                     
                     def foo() = println(t.toString())
                 }
-            """.trimIndent() to "[(T, NodeLocation(pos=1..2, type=identifier))]"
+            """.trimIndent()
         }
         data("trait.pi") {
             """
@@ -31,28 +32,32 @@ class TypeParamsTest {
                     
                     def bar: Int32 = 10
                 }
-            """.trimIndent() to "[]"
+            """.trimIndent()
         }
     }
+
+    private val expected = """
+        
+    """.trimIndent()
 
     @Test
     fun testTypeParams() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
+        val interners = instance.interners
+        instance.add(stlTree)
 
-        instance.add(tree.mapValues { it.first })
-        instance.access {
-            assertAll(tree.map { (file, data) ->
-                {
-                    val expected = data.second
-                    MemberType.entries.forEach { type ->
-                        handler.fileItems[file].iteratorFor(type).forEach { (name) ->
-                            val ref = type.buildHandle(file, name, 0)
-                            assertEquals(expected, handler.typeParams[ref].toString())
-                        }
-                    }
-                }
-            })
+        instance.add(tree)
+        val got = instance.access { queries ->
+            interners
+                .packIds[rootPackage]
+                .hierarchyMemberIterator(interners, queries)
+                .asSequence()
+                .mapNotNull { interners.typeIds.getOrNull(it) }
+                .map { handler.constructors[it] }
+                .joinToString(separator = "\n")
         }
+
+        assertEquals(expected, got)
     }
 }

@@ -16,20 +16,20 @@ interface MainInterners {
     val memberIds: MemberInterner
     val typeIds: TypeInterner
     val typeParamIds: TypeParamInterner
-}
-
-interface PathInterners {
     val fileIds: FileInterner
     val packIds: PackageInterner
 }
 
-internal class DefaultInterners : MainInterners {
+internal interface InstanceInterners : MainInterners {
+    override val memberIds: MutableInterner<MemberHandle, MemberId>
+    override val typeIds: MutableInterner<MemberId, TypeId>
+    override val typeParamIds: MutableInterner<TypeParamHandle, TypeParamId>
+}
+
+internal class DefaultInterners : InstanceInterners {
     override val memberIds = MapBasedInterner<MemberHandle, MemberId>(::MemberId)
     override val typeIds = ListBasedInterner<MemberId, TypeId>(::TypeId)
     override val typeParamIds = MapBasedInterner<TypeParamHandle, TypeParamId>(::TypeParamId)
-}
-
-internal class DefaultPathInterners : PathInterners {
     override val fileIds = MapBasedInterner<FilePath, FileId>(::FileId)
     override val packIds = MapBasedInterner<PackagePath, PackageId>(::PackageId)
 }

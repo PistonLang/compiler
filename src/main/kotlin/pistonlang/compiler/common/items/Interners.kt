@@ -1,9 +1,12 @@
 package pistonlang.compiler.common.items
 
 interface Interner<From, To: Id> {
+
     operator fun get(from: From): To
 
-    operator fun get(to: To): From
+    fun getOrNull(from: From): To?
+
+    fun getKey(to: To): From
 }
 
 interface MutableInterner<From, To: Id> : Interner<From, To> {
@@ -16,9 +19,11 @@ class MapBasedInterner<From, To: Id>(private val constructor: (Int) -> To): Muta
     private val forward = mutableMapOf<From, To>()
     private val reverse = ArrayList<From>(1024)
 
+    override fun getOrNull(from: From) = forward[from]
+
     override fun get(from: From): To = forward[from]!!
 
-    override fun get(to: To): From = reverse[to.value]
+    override fun getKey(to: To): From = reverse[to.value]
 
     override fun add(from: From) {
         if (forward.contains(from)) return
@@ -42,10 +47,12 @@ class ListBasedInterner<From: Id, To: Id>(private val constructor: (Int) -> To):
     private val forward = IdList<From, To>(1024)
     private val reverse = ArrayList<From>(1024)
 
+    override fun getOrNull(from: From): To? = forward[from]
+
     override fun get(from: From): To =
         forward[from] ?: throw IllegalArgumentException("Tried to get an id from an unmatched value")
 
-    override fun get(to: To): From  = reverse[to.value]
+    override fun getKey(to: To): From  = reverse[to.value]
 
     override fun add(from: From) {
         if (forward[from] != null) return

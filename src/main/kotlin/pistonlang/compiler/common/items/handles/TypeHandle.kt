@@ -1,7 +1,9 @@
 package pistonlang.compiler.common.items.handles
 
+import pistonlang.compiler.common.items.Qualifiable
 import pistonlang.compiler.common.items.TypeId
 import pistonlang.compiler.common.items.TypeParamId
+import pistonlang.compiler.common.main.MainInterners
 
 enum class TypeType {
     Type,
@@ -13,14 +15,10 @@ enum class TypeError {
     UnknownType
 }
 
-class TypeHandle private constructor(
+class TypeHandle internal constructor(
     @PublishedApi internal val id: Int,
     val type: TypeType
-) {
-    constructor(typeId: TypeId) : this(typeId.value, TypeType.Type)
-    constructor(typeParam: TypeParamId) : this(typeParam.value, TypeType.TypeParam)
-    constructor(error: TypeError) : this(error.ordinal, TypeType.Error)
-
+) : Qualifiable {
     inline fun <T> match(
         onType: (TypeId) -> T,
         onTypeParam: (TypeParamId) -> T,
@@ -49,4 +47,14 @@ class TypeHandle private constructor(
         TypeType.TypeParam -> TypeParamId(id).toString()
         TypeType.Error -> TypeError.entries[id].toString()
     }
+
+    override fun qualify(interners: MainInterners): String = match(
+        onTypeParam = { it.qualify(interners) },
+        onType = { it.qualify(interners) },
+        onError = { it.toString() }
+    )
 }
+
+fun TypeId.asType() = TypeHandle(value, TypeType.Type)
+fun TypeParamId.asType() = TypeHandle(value, TypeType.TypeParam)
+fun TypeError.asType() = TypeHandle(ordinal, TypeType.Error)

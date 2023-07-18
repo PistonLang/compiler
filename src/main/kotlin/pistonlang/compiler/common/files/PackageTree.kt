@@ -32,7 +32,7 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
         newPackages[pack] = newNode
         var child: PackageId = pack
 
-        forEachParentPackage(interner[pack].path) { handle, childName ->
+        forEachParentPackage(interner.getKey(pack).path) { handle, childName ->
             val currId = interner.getOrAdd(handle)
             val oldParent = packages[currId]
             val newParent =
@@ -59,7 +59,7 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
         val newNode = packages[pack]!!.copy(lastUpdated = version)
         newPackages[pack] = newNode
 
-        forEachParentPackage(interner[pack].path) { handle, _ ->
+        forEachParentPackage(interner.getKey(pack).path) { handle, _ ->
             val currId = interner[handle]
             newPackages[currId] = packages[currId]!!.copy(lastUpdated = version)
         }
@@ -81,7 +81,7 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
 
         var childValid = newNode.isValid
 
-        forEachParentPackage(interner[pack].path) { handle, childName ->
+        forEachParentPackage(interner.getKey(pack).path) { handle, childName ->
             val currId = interner[handle]
             val oldParent = packages[currId]!!
             val newParent = PackageTreeNode(
