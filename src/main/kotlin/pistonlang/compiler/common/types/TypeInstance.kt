@@ -13,3 +13,5 @@ data class TypeInstance(val type: TypeHandle, val args: List<TypeInstance>, val 
 }
 
 val unknownInstance = TypeInstance(TypeError.UnknownType.asType(), emptyList(), false)
+val missingSTLType = TypeError.UnknownType.asType()
+val missingSTLInstance = TypeInstance(missingSTLType, emptyList(), false)

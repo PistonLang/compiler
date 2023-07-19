@@ -4,7 +4,8 @@ import org.junit.jupiter.api.Test
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.items.qualify
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
@@ -37,7 +38,13 @@ class TypeParamsTest {
     }
 
     private val expected = """
-        
+        Function(FilePath(path=func.pi), func, 0): [(A, NodeLocation(pos=1..2, type=identifier))]
+        MultiInstanceClass(FilePath(path=class.pi), Foo, 0): [(T, NodeLocation(pos=1..2, type=identifier))]
+        Val(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), t, 0): []
+        Function(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), foo, 0): []
+        Trait(FilePath(path=trait.pi), Bar, 0): []
+        Function(Trait(FilePath(path=trait.pi), Bar, 0), foo, 0): []
+        Getter(Trait(FilePath(path=trait.pi), Bar, 0), bar, 0): []
     """.trimIndent()
 
     @Test
@@ -50,12 +57,11 @@ class TypeParamsTest {
         instance.add(tree)
         val got = instance.access { queries ->
             interners
-                .packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
-                .mapNotNull { interners.typeIds.getOrNull(it) }
-                .map { handler.constructors[it] }
-                .joinToString(separator = "\n")
+                .map { it to handler.typeParams[it] }
+                .joinToString(separator = "\n") { it.qualify(interners) }
         }
 
         assertEquals(expected, got)

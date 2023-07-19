@@ -8,21 +8,24 @@ import pistonlang.compiler.common.items.FileId
 import pistonlang.compiler.common.items.Interner
 import pistonlang.compiler.common.items.MutableInterner
 import pistonlang.compiler.common.items.PackageId
+import pistonlang.compiler.common.main.PackageInterner
 import pistonlang.compiler.common.queries.QueryVersion
+import pistonlang.compiler.util.SingletonIterator
+import java.util.Stack
 
 internal const val packPathDelimiter = '.'
 
 // TODO: Use a persistent IdList instead of a persistent map
-class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
+class PackageTree(val nodes: PersistentMap<PackageId, PackageTreeNode>) {
     fun addFile(
         pack: PackageId,
         file: FileId,
         version: QueryVersion,
         interner: MutableInterner<PackagePath, PackageId>
     ): PackageTree {
-        val newPackages = packages.builder()
+        val newPackages = nodes.builder()
 
-        val oldNode = packages[pack]
+        val oldNode = nodes[pack]
         val newNode = if (oldNode == null) {
             PackageTreeNode(version, persistentSetOf(file), persistentMapOf())
         } else {
@@ -34,7 +37,7 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
 
         forEachParentPackage(interner.getKey(pack).path) { handle, childName ->
             val currId = interner.getOrAdd(handle)
-            val oldParent = packages[currId]
+            val oldParent = nodes[currId]
             val newParent =
                 if (oldParent == null) PackageTreeNode(
                     version,
@@ -52,16 +55,16 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
     fun updateFilePath(
         pack: PackageId,
         version: QueryVersion,
-        interner: Interner<PackagePath, PackageId>
+        interner: PackageInterner
     ): PackageTree {
-        val newPackages = packages.builder()
+        val newPackages = nodes.builder()
 
-        val newNode = packages[pack]!!.copy(lastUpdated = version)
+        val newNode = nodes[pack]!!.copy(lastUpdated = version)
         newPackages[pack] = newNode
 
         forEachParentPackage(interner.getKey(pack).path) { handle, _ ->
-            val currId = interner[handle]
-            newPackages[currId] = packages[currId]!!.copy(lastUpdated = version)
+            val currId = interner[handle]!!
+            newPackages[currId] = nodes[currId]!!.copy(lastUpdated = version)
         }
 
         return PackageTree(newPackages.build())
@@ -71,10 +74,10 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
         pack: PackageId,
         file: FileId,
         version: QueryVersion,
-        interner: Interner<PackagePath, PackageId>
+        interner: PackageInterner
     ): PackageTree {
-        val newPackages = packages.builder()
-        val oldNode = packages[pack]!!
+        val newPackages = nodes.builder()
+        val oldNode = nodes[pack]!!
         val newNode = PackageTreeNode(version, oldNode.files.remove(file), oldNode.children)
 
         newPackages[pack] = newNode
@@ -82,8 +85,8 @@ class PackageTree(val packages: PersistentMap<PackageId, PackageTreeNode>) {
         var childValid = newNode.isValid
 
         forEachParentPackage(interner.getKey(pack).path) { handle, childName ->
-            val currId = interner[handle]
-            val oldParent = packages[currId]!!
+            val currId = interner[handle]!!
+            val oldParent = nodes[currId]!!
             val newParent = PackageTreeNode(
                 lastUpdated = version,
                 files = oldParent.files,

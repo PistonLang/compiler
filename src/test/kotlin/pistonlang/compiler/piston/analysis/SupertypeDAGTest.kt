@@ -3,7 +3,7 @@ package pistonlang.compiler.piston.analysis
 import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,10 +24,27 @@ class SupertypeDAGTest {
     }
 
     private val expected = """
-        TypeDAG(lowest=[TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)], nodes={TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)=TypeDAGNode(args=[], parents=[]), TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)=TypeDAGNode(args=[TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0), id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)])})
-        TypeDAG(lowest=[TraitHandle(parent=FileHandle(path=foo.pi), name=B, id=0)], nodes={TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)=TypeDAGNode(args=[], parents=[]), TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)=TypeDAGNode(args=[TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)]), TraitHandle(parent=FileHandle(path=foo.pi), name=B, id=0)=TypeDAGNode(args=[], parents=[TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)])})
-        TypeDAG(lowest=[TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0)], nodes={TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)=TypeDAGNode(args=[], parents=[]), TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)=TypeDAGNode(args=[TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0), id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)]), TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0)=TypeDAGNode(args=[TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0), id=0), args=[], nullable=false), TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0), id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)])})
-        TypeDAG(lowest=[TraitHandle(parent=FileHandle(path=foo.pi), name=D, id=0)], nodes={TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)=TypeDAGNode(args=[], parents=[]), TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)=TypeDAGNode(args=[TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=piston.special.pi), name=Any, id=0)]), TraitHandle(parent=FileHandle(path=foo.pi), name=B, id=0)=TypeDAGNode(args=[], parents=[TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)]), TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0)=TypeDAGNode(args=[TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false), TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.bools.pi), name=Bool, id=0), args=[], nullable=false)], parents=[TraitHandle(parent=FileHandle(path=foo.pi), name=A, id=0)]), TraitHandle(parent=FileHandle(path=foo.pi), name=D, id=0)=TypeDAGNode(args=[], parents=[TraitHandle(parent=FileHandle(path=foo.pi), name=B, id=0), TraitHandle(parent=FileHandle(path=foo.pi), name=C, id=0)])})
+        TypeDAG([Trait(FilePath(path=foo.pi), A, 0)]) {
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=foo.pi), A, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), A, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        }
+        TypeDAG([Trait(FilePath(path=foo.pi), B, 0)]) {
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=foo.pi), A, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        	Trait(FilePath(path=foo.pi), B, 0): Node([], [Trait(FilePath(path=foo.pi), A, 0)])
+        }
+        TypeDAG([Trait(FilePath(path=foo.pi), C, 0)]) {
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=foo.pi), A, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), C, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        	Trait(FilePath(path=foo.pi), C, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), C, 0), 0), TypeParam(Trait(FilePath(path=foo.pi), C, 0), 1)], [Trait(FilePath(path=foo.pi), A, 0)])
+        }
+        TypeDAG([Trait(FilePath(path=foo.pi), D, 0)]) {
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=foo.pi), A, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        	Trait(FilePath(path=foo.pi), B, 0): Node([], [Trait(FilePath(path=foo.pi), A, 0)])
+        	Trait(FilePath(path=foo.pi), C, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0), MultiInstanceClass(FilePath(path=piston.bools.pi), Bool, 0)], [Trait(FilePath(path=foo.pi), A, 0)])
+        	Trait(FilePath(path=foo.pi), D, 0): Node([], [Trait(FilePath(path=foo.pi), B, 0), Trait(FilePath(path=foo.pi), C, 0)])
+        }
     """.trimIndent()
 
     @Test
@@ -39,10 +56,11 @@ class SupertypeDAGTest {
 
         instance.add(tree)
         val value = instance.access { queries ->
-            interners.packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+            interners
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
-                .mapNotNull { interners.typeIds.getOrNull(it) }
+                .mapNotNull { interners.typeIds[it] }
                 .map { queries.supertypeDAG[it] }
                 .joinToString(separator = "\n") { it.qualify(interners) }
         }

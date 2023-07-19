@@ -101,6 +101,7 @@ class DependentQuery<in K : Id, out V>(
 
         // If this is the first computation just compute the value and store its dependencies
         val last = backing[key] ?: return@nested run {
+            backing[key] = InProgressQueryValue
             val deps = mutableListOf<QueryKey<*, *>>()
             val newValue = with(QueryAccessor(deps)) { computeFn(key) }
             ComputedQueryValue(modified = version, checked = version, newValue, deps)

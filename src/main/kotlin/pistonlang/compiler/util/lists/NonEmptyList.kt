@@ -1,11 +1,10 @@
 package pistonlang.compiler.util.lists
 
 @JvmInline
-value class NonEmptyList<out T> internal constructor(private val nested: List<T>) : Iterable<T> {
-    override fun iterator(): Iterator<T> = nested.iterator()
-
-    operator fun get(index: Int): T = nested[index]
+value class NonEmptyList<out T> internal constructor(private val nested: List<T>) : List<T> by nested {
+    override fun isEmpty(): Boolean = false
 }
+
 
 fun <T> List<T>.assertNonEmpty(): NonEmptyList<T> =
     if (isEmpty()) error("The list should not be empty")

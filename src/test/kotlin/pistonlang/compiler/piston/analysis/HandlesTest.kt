@@ -71,7 +71,7 @@ class HandlesTest {
             assertAll(expectations.map { (code, expected) ->
                 {
                     instance.addFile(rootPackage, reference, code)
-                    val id = instance.interners.fileIds[reference]
+                    val id = instance.interners.fileIds[reference]!!
                     assertEquals(expected, handler.fileItems[id])
                 }
             })

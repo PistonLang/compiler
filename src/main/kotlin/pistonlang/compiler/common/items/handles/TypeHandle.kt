@@ -12,7 +12,8 @@ enum class TypeType {
 }
 
 enum class TypeError {
-    UnknownType
+    UnknownType,
+    MissingSTL
 }
 
 class TypeHandle internal constructor(

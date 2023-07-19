@@ -5,7 +5,7 @@ import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.qualify
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
@@ -39,7 +39,13 @@ class ReturnTypeTest {
     }
 
     private val expected = """
-        
+        Function(FilePath(path=func.pi), func, 0): Dependent([NodeLocation(pos=0..5, type=identifier): [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)]], MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0))
+        MultiInstanceClass(FilePath(path=class.pi), Foo, 0): Dependent([], SingletonClass(FilePath(path=piston.tuples.pi), Unit, 0))
+        Val(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), t, 0): Dependent([NodeLocation(pos=0..1, type=identifier): [TypeParam(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), 0)]], TypeParam(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), 0))
+        Function(MultiInstanceClass(FilePath(path=class.pi), Foo, 0), foo, 0): Dependent([], SingletonClass(FilePath(path=piston.tuples.pi), Unit, 0))
+        Trait(FilePath(path=trait.pi), Bar, 0): Dependent([], SingletonClass(FilePath(path=piston.tuples.pi), Unit, 0))
+        Function(Trait(FilePath(path=trait.pi), Bar, 0), foo, 0): Dependent([], SingletonClass(FilePath(path=piston.tuples.pi), Unit, 0))
+        Getter(Trait(FilePath(path=trait.pi), Bar, 0), bar, 0): Dependent([NodeLocation(pos=0..5, type=identifier): [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)]], MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0))
     """.trimIndent()
 
     @Test
@@ -52,8 +58,8 @@ class ReturnTypeTest {
         instance.add(tree)
         val value = instance.access { queries ->
             interners
-                .packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
                 .map { it to handler.returnType[it] }
                 .joinToString(separator = "\n") { it.qualify(interners) }

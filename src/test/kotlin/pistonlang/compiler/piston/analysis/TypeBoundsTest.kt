@@ -5,7 +5,7 @@ import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.qualify
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
@@ -27,15 +27,15 @@ class TypeBoundsTest {
     }
 
     private val expected = """
-        (MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=26..27, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=31..32, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1)])), HandleData(location=NodeLocation(pos=34..35, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1)])), HandleData(location=NodeLocation(pos=39..42, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0)]))], data=[[TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), args=[TypeInstance(type=TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=0), args=[], nullable=false)], nullable=false), TypeInstance(type=TypeParamHandle(parent=MultiInstanceClassHandle(parent=FileHandle(path=classes.pi), name=Foo, id=0), id=1), args=[], nullable=false)], [TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0), args=[], nullable=false)]]))
-        (TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), Dependent(dependencies=[], data=[[]]))
-        (FunctionHandle(parent=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), name=compare, id=0), Dependent(dependencies=[], data=[]))
-        (TraitHandle(parent=FileHandle(path=classes.pi), name=Bar, id=0), Dependent(dependencies=[], data=[]))
-        (FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0)]))], data=[[TypeInstance(type=TraitHandle(parent=FileHandle(path=classes.pi), name=Comparable, id=0), args=[TypeInstance(type=TypeParamHandle(parent=FunctionHandle(parent=FileHandle(path=classes.pi), name=foo, id=0), id=0), args=[], nullable=false)], nullable=false)]]))
+        MultiInstanceClass(FilePath(path=classes.pi), Foo, 0): Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=0)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[MemberId(value=1)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=0)])), HandleData(location=NodeLocation(pos=26..27, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=0)])), HandleData(location=NodeLocation(pos=31..32, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=1)])), HandleData(location=NodeLocation(pos=34..35, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=1)])), HandleData(location=NodeLocation(pos=39..42, type=identifier), handles=NonEmptyList(nested=[MemberId(value=2)]))], data=[[TypeInstance(type=TypeId(value=1), args=[TypeInstance(type=TypeParamId(value=0), args=[], nullable=false)], nullable=false), TypeInstance(type=TypeParamId(value=1), args=[], nullable=false)], [TypeInstance(type=TypeId(value=2), args=[], nullable=false)]])
+        Trait(FilePath(path=classes.pi), Comparable, 0): Dependent(dependencies=[], data=[[]])
+        Function(Trait(FilePath(path=classes.pi), Comparable, 0), compare, 0): Dependent(dependencies=[], data=[])
+        Trait(FilePath(path=classes.pi), Bar, 0): Dependent(dependencies=[], data=[])
+        Function(FilePath(path=classes.pi), foo, 0): Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..7, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=3)])), HandleData(location=NodeLocation(pos=11..21, type=identifier), handles=NonEmptyList(nested=[MemberId(value=1)])), HandleData(location=NodeLocation(pos=22..23, type=identifier), handles=NonEmptyList(nested=[TypeParamId(value=3)]))], data=[[TypeInstance(type=TypeId(value=1), args=[TypeInstance(type=TypeParamId(value=3), args=[], nullable=false)], nullable=false)]])
     """.trimIndent()
 
     @Test
-    fun testTypeParams() {
+    fun testTypeBounds() {
         val instance = defaultInstance()
         val handler = instance.addHandler(defaultHandler)
         val interners = instance.interners
@@ -44,8 +44,8 @@ class TypeBoundsTest {
         instance.add(tree)
         val value = instance.access { queries ->
             interners
-                .packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
                 .map { it to handler.typeParamBounds[it] }
                 .joinToString(separator = "\n") { it.qualify(interners) }

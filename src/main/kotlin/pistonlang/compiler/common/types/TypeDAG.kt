@@ -19,13 +19,15 @@ data class TypeDAGNode(
         "Node(${args.qualify(interners)}, ${parents.qualify(interners)})"
 }
 
+val emptyTypeDAGNode = TypeDAGNode(emptyList(), persistentSetOf())
+
 data class TypeDAG(
     val lowest: PersistentSet<TypeHandle>,
     val nodes: PersistentMap<TypeHandle, TypeDAGNode>
 ) : Qualifiable {
     override fun qualify(interners: MainInterners): String =
         "TypeDAG(${lowest.qualify(interners)}) ${
-            nodes.asSequence().joinToString(separator = "\n\t", prefix = "{\n", postfix = "\n}") {
+            nodes.asSequence().joinToString(separator = "\n\t", prefix = "{\n\t", postfix = "\n}") {
                 "${it.key.qualify(interners)}: ${it.value.qualify(interners)}"
             }
         }"
@@ -41,7 +43,7 @@ tailrec fun Map<TypeHandle, TypeDAGNode>.resolveParam(
     val paramHandle = interners.typeParamIds.getKey(param)
     val parent = paramHandle.parent
 
-    val id = interners.typeIds.getOrNull(parent) ?: return TypeInstance(param.asType(), emptyList(), nullable)
+    val id = interners.typeIds.get(parent) ?: return TypeInstance(param.asType(), emptyList(), nullable)
 
     val handle = id.asType()
 

@@ -13,6 +13,14 @@ fun Pair<Qualifiable, Qualifiable>.qualify(interners: MainInterners) =
 fun Pair<Qualifiable, Any>.qualify(interners: MainInterners) =
     "${first.qualify(interners)}: $second"
 
+@JvmName("qualifyDependentPair")
+fun Pair<Qualifiable, Dependent<*, Qualifiable>>.qualify(interners: MainInterners) =
+    "${first.qualify(interners)}: ${second.qualify(interners)}"
+
+@JvmName("qualifyDependentListPair")
+fun Pair<Qualifiable, Dependent<*, List<Qualifiable>>>.qualify(interners: MainInterners) =
+    "${first.qualify(interners)}: ${second.qualify(interners)}"
+
 fun Iterable<Qualifiable>.qualify(interners: MainInterners): String =
     joinToString(prefix = "[", postfix = "]") { it.qualify(interners) }
 

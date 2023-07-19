@@ -5,7 +5,7 @@ import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.qualify
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
@@ -28,9 +28,12 @@ class ParamsTest {
     }
 
     private val expected = """
-        (FunctionHandle(parent=SingletonClassHandle(parent=FileHandle(path=foo.pi), name=Bar, id=0), name=foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=4..9, type=identifier), handles=NonEmptyList(nested=[MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0)])), HandleData(location=NodeLocation(pos=14..19, type=identifier), handles=NonEmptyList(nested=[MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0)]))], data=[TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false), TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false)]))
-        (SetterHandle(parent=SingletonClassHandle(parent=FileHandle(path=foo.pi), name=Bar, id=0), name=a, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=6..11, type=identifier), handles=NonEmptyList(nested=[MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0)]))], data=[TypeInstance(type=MultiInstanceClassHandle(parent=FileHandle(path=piston.numbers.pi), name=Int32, id=0), args=[], nullable=false)]))
-        (FunctionHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=Foo, id=0), name=foo, id=0), Dependent(dependencies=[HandleData(location=NodeLocation(pos=4..5, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=Foo, id=0), id=0)])), HandleData(location=NodeLocation(pos=10..11, type=identifier), handles=NonEmptyList(nested=[TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=Foo, id=0), id=0)]))], data=[TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=Foo, id=0), id=0), args=[], nullable=false), TypeInstance(type=TypeParamHandle(parent=TraitHandle(parent=FileHandle(path=foo.pi), name=Foo, id=0), id=0), args=[], nullable=false)]))
+        SingletonClass(FilePath(path=foo.pi), Bar, 0): Dependent([], [])
+        Function(SingletonClass(FilePath(path=foo.pi), Bar, 0), foo, 0): Dependent([NodeLocation(pos=4..9, type=identifier): [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], NodeLocation(pos=14..19, type=identifier): [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)]], [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0), MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)])
+        Getter(SingletonClass(FilePath(path=foo.pi), Bar, 0), a, 0): Dependent([], [])
+        Setter(SingletonClass(FilePath(path=foo.pi), Bar, 0), a, 0): Dependent([NodeLocation(pos=6..11, type=identifier): [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)]], [MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)])
+        Trait(FilePath(path=foo.pi), Foo, 0): Dependent([], [])
+        Function(Trait(FilePath(path=foo.pi), Foo, 0), foo, 0): Dependent([NodeLocation(pos=4..5, type=identifier): [TypeParam(Trait(FilePath(path=foo.pi), Foo, 0), 0)], NodeLocation(pos=10..11, type=identifier): [TypeParam(Trait(FilePath(path=foo.pi), Foo, 0), 0)]], [TypeParam(Trait(FilePath(path=foo.pi), Foo, 0), 0), TypeParam(Trait(FilePath(path=foo.pi), Foo, 0), 0)])
     """.trimIndent()
 
     @Test
@@ -43,8 +46,8 @@ class ParamsTest {
         instance.add(tree)
         val value = instance.access { queries ->
             interners
-                .packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
                 .map { it to handler.params[it] }
                 .joinToString(separator = "\n") { it.qualify(interners) }

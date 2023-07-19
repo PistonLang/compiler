@@ -11,7 +11,6 @@ import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.main.FileInputQueries
 import pistonlang.compiler.common.main.MainInterners
 import pistonlang.compiler.common.main.MainQueries
-import pistonlang.compiler.common.main.hierarchyMemberIterator
 import pistonlang.compiler.common.parser.Lexer
 import pistonlang.compiler.common.parser.Parser
 import pistonlang.compiler.common.parser.RelativeNodeLoc
@@ -41,10 +40,22 @@ class PistonLanguageHandler(
     override val extensions: List<String> = listOf("pi")
 
     private val constants: SingletonQuery<PistonConstants> = DependentSingletonQuery(versionData) {
-        val defaultImports = interners.packIds[PackagePath("piston")]
-            .hierarchyMemberIterator(interners, mainQueries)
-            .asSequence()
-            .groupBy({ interners.memberIds.getKey(it).name }, { it.asItem() })
+        val defaultImports = interners.packIds[PackagePath("piston")]?.let { pistonId ->
+            mainQueries
+                .packageTreeIterator(pistonId)
+                .asSequence()
+                .flatMap { id ->
+                    mainQueries
+                        .packageItems[id]
+                        .asSequence()
+                        .flatMap { (key, value) ->
+                            value
+                                .filter { it.type == ItemType.Member }
+                                .map { key to it }
+                        }
+                }
+                .groupBy({ it.first }) { it.second }
+        } ?: emptyMap()
 
         val stlTypes = mainQueries.stlTypes.value
 

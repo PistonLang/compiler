@@ -8,6 +8,8 @@ class IdList<Index: Id, Value>(initialCapacity: Int = 10) {
         private set
 
     private fun expandToFit(index: Int) {
+        if (index < backing.size) return
+
         val newSize = 1 shl 32 - index.countLeadingZeroBits()
         backing = backing.copyOf(newSize)
     }

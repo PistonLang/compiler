@@ -59,7 +59,7 @@ class ItemHandle internal constructor(
 
     fun toTypeHandle(interners: MainInterners): TypeHandle? = match(
         onPackage = { null },
-        onMember = { interners.typeIds.getOrNull(it)?.asType() },
+        onMember = { interners.typeIds.get(it)?.asType() },
         onTypeParam = { it.asType() },
         onError = { null }
     )

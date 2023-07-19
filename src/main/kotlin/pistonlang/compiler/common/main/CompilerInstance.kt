@@ -9,13 +9,13 @@ import pistonlang.compiler.common.queries.QueryAccessor
 import pistonlang.compiler.common.queries.QueryVersionData
 import pistonlang.compiler.util.lists.VoidList
 
-private val voidAccessor = QueryAccessor(VoidList)
+@PublishedApi internal val voidAccessor = QueryAccessor(VoidList)
 
 class CompilerInstance(private val versionData: QueryVersionData) {
     private val extensionHandlers = mutableMapOf<String, LanguageHandler<*>>()
     private val inputs: DefaultInputQueries = DefaultInputQueries(versionData)
     private val mainInterners: DefaultInterners = DefaultInterners()
-    private val queries = MainQueries(versionData, mainInterners, inputs)
+    @PublishedApi internal val queries = MainQueries(versionData, mainInterners, inputs)
 
     val interners: MainInterners
         get() = mainInterners
@@ -30,7 +30,7 @@ class CompilerInstance(private val versionData: QueryVersionData) {
         return handler
     }
 
-    fun <T> access(fn: context(QueryAccessor) (MainQueries) -> T) =
+    inline fun <T> access(fn: context(QueryAccessor) (MainQueries) -> T) =
         fn(voidAccessor, queries)
 
     fun addFile(pack: PackagePath, path: FilePath, code: String) {
@@ -52,7 +52,7 @@ class CompilerInstance(private val versionData: QueryVersionData) {
     }
 
     fun removeFile(path: FilePath) {
-        val id = mainInterners.fileIds[path]
+        val id = mainInterners.fileIds.get(path) ?: return
 
         if (!inputs.code.contains(id)) return
 

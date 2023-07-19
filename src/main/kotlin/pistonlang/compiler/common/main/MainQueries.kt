@@ -1,5 +1,6 @@
 package pistonlang.compiler.common.main
 
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import pistonlang.compiler.common.files.PackagePath
@@ -13,6 +14,7 @@ import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.main.stl.STLTypes
 import pistonlang.compiler.common.queries.*
 import pistonlang.compiler.common.types.*
+import pistonlang.compiler.util.SingletonIterator
 import java.util.*
 import kotlin.collections.ArrayDeque
 
@@ -25,8 +27,8 @@ class MainQueries internal constructor(
         DependentQuery(versionData, computeFn = ::findChildHandler)
 
     val stlTypes: SingletonQuery<STLTypes> = DependentSingletonQuery(versionData) {
-        val pack = interners.packIds[PackagePath("piston")]
-        val items = packageItems[pack]
+        val items = interners.packIds[PackagePath("piston")]
+            ?.let { packageItems[it] }
 
         STLTypes(
             int8 = getSTLType("Int8", items),
@@ -44,8 +46,8 @@ class MainQueries internal constructor(
         )
     }
 
-    private fun getSTLType(name: String, items: Map<String, List<ItemHandle>>) =
-        items[name]!![0].asMember!!.let { interners.typeIds[it] }
+    private fun getSTLType(name: String, items: Map<String, List<ItemHandle>>?): TypeHandle =
+        items?.get(name)?.get(0)?.asMember?.let { interners.typeIds[it]?.asType() } ?: missingSTLType
 
     context(QueryAccessor)
     private fun findChildHandler(id: MemberId): LanguageHandler<*>? = interners.memberIds.getKey(id).parent.match(
@@ -56,7 +58,7 @@ class MainQueries internal constructor(
     val packageHandleNode: Query<PackageId, PackageTreeNode> = DependentQuery(
         versionData,
         equalityFun = { old, new -> old.lastUpdated == new.lastUpdated },
-        computeFn = { key -> inputs.packageTree.value.packages[key]!! }
+        computeFn = { key -> inputs.packageTree.value.nodes[key]!! }
     )
 
     val packageItems: Query<PackageId, Map<String, List<ItemHandle>>> = DependentQuery(versionData) fn@{ key ->
@@ -118,16 +120,29 @@ class MainQueries internal constructor(
 
     // TODO: Handle cycles
     val supertypeDAG: Query<TypeId, TypeDAG> = DependentQuery(versionData) fn@{ key ->
+        val any = stlTypes.value.any
+        val handle = key.asType()
+        if (handle == any) {
+            return@fn TypeDAG(
+                persistentSetOf(any),
+                persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
+            )
+        }
+
         val memberId = interners.typeIds.getKey(key)
         val handler = childHandler[memberId] ?: return@fn emptyTypeDAG
         val superTypes = handler.supertypes[key].data
         val typeArgs = defaultInstance[key].args
-        val handle = key.asType()
 
-        val withoutCurr =
-            superTypes.fold(emptyTypeDAG) { acc: TypeDAG, value: TypeInstance ->
-                val forCurrent = newDAGFor(value) ?: return@fold acc
-                mergeDAGs(acc, forCurrent)
+        val withoutCurr = superTypes
+            .asSequence()
+            .mapNotNull { newDAGFor(it) }
+            .fold(emptyTypeDAG) { acc, value -> mergeDAGs(acc, value) }
+            .let {
+                if (it === emptyTypeDAG) TypeDAG(
+                    persistentSetOf(any),
+                    persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
+                ) else it
             }
         TypeDAG(persistentSetOf(handle), withoutCurr.nodes.put(handle, TypeDAGNode(typeArgs, withoutCurr.lowest)))
     }
@@ -193,16 +208,43 @@ class MainQueries internal constructor(
             TypeInstance(newLeft.type, args, newLeft.nullable)
         } else unknownInstance
     }
+
+    context(QueryAccessor)
+    fun packageTreeIterator(startId: PackageId) = object : Iterator<PackageId> {
+        val stack = Stack<Iterator<PackageId>>()
+        var iter: Iterator<PackageId> = SingletonIterator(startId)
+
+        override fun hasNext(): Boolean = iter.hasNext()
+
+        private tailrec fun findNext(): Unit = if (iter.hasNext() || stack.isEmpty()) Unit else {
+            iter = stack.pop()
+            findNext()
+        }
+
+        private fun findNext(id: PackageId) {
+            val newIter = inputs.packageTree.value.nodes[id]!!.children.values.iterator()
+            if (newIter.hasNext())
+                iter = newIter
+            else findNext()
+        }
+
+        override fun next(): PackageId {
+            val pack = iter.next()
+            findNext(pack)
+            return pack
+        }
+    }
 }
 
 context(QueryAccessor)
-fun PackageId.hierarchyMemberIterator(interners: MainInterners, queries: MainQueries) = object : Iterator<MemberId> {
-    private var iterStack = Stack<Iterator<MemberHandle>>()
-    private var iter = queries
-        .packageItems[this@hierarchyMemberIterator]
+fun PackageId.memberHierarchyIterator(queries: MainQueries) = object : Iterator<MemberId> {
+    private var iterStack = Stack<Iterator<MemberId>>()
+    private var iter: Iterator<MemberId> = queries
+        .packageItems[this@memberHierarchyIterator]
         .asSequence()
         .flatMap { (_, list) -> list }
-        .filterIsInstance<MemberHandle>().iterator()
+        .mapNotNull { it.asMember }
+        .iterator()
 
     override fun hasNext(): Boolean = iter.hasNext()
 
@@ -211,7 +253,6 @@ fun PackageId.hierarchyMemberIterator(interners: MainInterners, queries: MainQue
             .childItems[id]
             .asSequence()
             .flatMap { (_, list) -> list }
-            .filterIsInstance<MemberHandle>()
             .iterator()
 
         if (next.hasNext()) {
@@ -227,7 +268,7 @@ fun PackageId.hierarchyMemberIterator(interners: MainInterners, queries: MainQue
     }
 
     override fun next(): MemberId {
-        val res = interners.memberIds[iter.next()]
+        val res = iter.next()
         findNext(res)
         return res
     }

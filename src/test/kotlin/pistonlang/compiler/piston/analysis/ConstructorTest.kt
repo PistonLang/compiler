@@ -5,7 +5,7 @@ import pistonlang.compiler.common.files.add
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.files.virtualTree
 import pistonlang.compiler.common.items.qualify
-import pistonlang.compiler.common.main.hierarchyMemberIterator
+import pistonlang.compiler.common.main.memberHierarchyIterator
 import pistonlang.compiler.common.main.stl.stlTree
 import kotlin.test.assertEquals
 
@@ -38,7 +38,8 @@ class ConstructorTest {
     }
 
     val expected = """
-        
+        MultiInstanceClass(FilePath(path=class.pi), Foo, 0): [NodeLocation(pos=12..18, type=functionParams)]
+        Trait(FilePath(path=trait.pi), Bar, 0): []
     """.trimIndent()
 
     @Test
@@ -51,10 +52,10 @@ class ConstructorTest {
         instance.add(tree)
         val got = instance.access { queries ->
             interners
-                .packIds[rootPackage]
-                .hierarchyMemberIterator(interners, queries)
+                .packIds[rootPackage]!!
+                .memberHierarchyIterator(queries)
                 .asSequence()
-                .mapNotNull { interners.typeIds.getOrNull(it) }
+                .mapNotNull { interners.typeIds[it] }
                 .map { it to handler.constructors[it] }
                 .joinToString("\n") { it.qualify(interners) }
         }
