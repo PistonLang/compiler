@@ -13,7 +13,9 @@ enum class TypeType {
 
 enum class TypeError {
     UnknownType,
-    MissingSTL
+    MissingSTL,
+    UnspecifiedType,
+    ConflictingArgument
 }
 
 class TypeHandle internal constructor(

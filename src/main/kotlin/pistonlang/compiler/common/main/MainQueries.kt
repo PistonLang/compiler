@@ -118,43 +118,54 @@ class MainQueries internal constructor(
     }
 
 
-    // TODO: Handle cycles
-    val supertypeDAG: Query<TypeId, TypeDAG> = DependentQuery(versionData) fn@{ key ->
-        val any = stlTypes.value.any
-        val handle = key.asType()
-        if (handle == any) {
-            return@fn TypeDAG(
-                persistentSetOf(any),
-                persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
+    val supertypeData: Query<TypeId, SupertypeData> = DependentQuery(
+        versionData,
+        cycleHandler = { SupertypeData(emptyTypeDAG, setOf(it)) },
+        computeFn = fn@{ key ->
+            val handle = key.asType()
+            val memberId = interners.typeIds.getKey(key)
+            val handler = childHandler[memberId] ?: return@fn emptySupertypeData
+            val superTypes = handler.supertypes[key].data
+            val typeArgs = defaultInstance[key].args
+            val excluding = mutableSetOf<TypeId>()
+
+            val withoutCurr = superTypes
+                .asSequence()
+                .mapNotNull { newDAGFor(it, key) }
+                .fold(emptyTypeDAG) { acc, value ->
+                    excluding.addAll(value.excluding)
+                    mergeDAGs(acc, value.dag)
+                }
+                .let {
+                    val any = stlTypes.value.any
+                    if (it.isEmpty() && handle != any) TypeDAG(
+                        persistentSetOf(any),
+                        persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
+                    ) else it
+                }
+
+            val dag = TypeDAG(
+                persistentSetOf(handle),
+                withoutCurr.nodes.put(handle, TypeDAGNode(typeArgs, withoutCurr.lowest))
             )
-        }
 
-        val memberId = interners.typeIds.getKey(key)
-        val handler = childHandler[memberId] ?: return@fn emptyTypeDAG
-        val superTypes = handler.supertypes[key].data
-        val typeArgs = defaultInstance[key].args
-
-        val withoutCurr = superTypes
-            .asSequence()
-            .mapNotNull { newDAGFor(it) }
-            .fold(emptyTypeDAG) { acc, value -> mergeDAGs(acc, value) }
-            .let {
-                if (it === emptyTypeDAG) TypeDAG(
-                    persistentSetOf(any),
-                    persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
-                ) else it
-            }
-        TypeDAG(persistentSetOf(handle), withoutCurr.nodes.put(handle, TypeDAGNode(typeArgs, withoutCurr.lowest)))
-    }
+            SupertypeData(dag, excluding)
+        })
 
     context(QueryAccessor)
-    private fun newDAGFor(instance: TypeInstance): TypeDAG? {
+    private fun newDAGFor(instance: TypeInstance, on: TypeId): SupertypeData? {
         val type = instance.type.asType ?: return null
         val handle = type.asType()
-        val oldDAG = supertypeDAG[type]
-        return TypeDAG(
-            oldDAG.lowest,
-            oldDAG.nodes.put(handle, TypeDAGNode(instance.args, oldDAG.nodes[handle]!!.parents))
+        val oldData = supertypeData[type]
+        val oldDAG = oldData.dag
+
+        if (oldDAG.isEmpty()) return oldData
+
+        return if (oldData.excluding.contains(on)) null else oldData.copy(
+            dag = TypeDAG(
+                oldDAG.lowest,
+                oldDAG.nodes.put(handle, TypeDAGNode(instance.args, oldDAG.nodes[handle]!!.parents))
+            )
         )
     }
 
@@ -198,7 +209,7 @@ class MainQueries internal constructor(
         right: List<TypeInstance>,
         rightNodes: Map<TypeHandle, TypeDAGNode>
     ): List<TypeInstance> = left.zip(right) { l, r ->
-        if (l.nullable != r.nullable) return@zip unknownInstance
+        if (l.nullable != r.nullable) return@zip conflictingArgumentInstance
 
         val newLeft = l.type.asTypeParam?.let { leftNodes.resolveParam(it, l.nullable, interners) } ?: l
         val newRight = r.type.asTypeParam?.let { rightNodes.resolveParam(it, r.nullable, interners) } ?: r
@@ -206,7 +217,7 @@ class MainQueries internal constructor(
         if (newLeft.type == newRight.type) {
             val args = checkArgs(newLeft.args, leftNodes, newRight.args, rightNodes)
             TypeInstance(newLeft.type, args, newLeft.nullable)
-        } else unknownInstance
+        } else conflictingArgumentInstance
     }
 
     context(QueryAccessor)

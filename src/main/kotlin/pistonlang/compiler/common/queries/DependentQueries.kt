@@ -5,16 +5,11 @@ import pistonlang.compiler.common.items.IdList
 import pistonlang.compiler.common.items.UnitId
 import pistonlang.compiler.util.contextMember
 
-data class InputQueryValue<out V>(
-    val modified: QueryVersion,
-    val value: V
-)
-
-sealed interface DependentQueryValue<out V> {
+private sealed interface DependentQueryValue<out V> {
     fun computed(): ComputedQueryValue<V>?
 }
 
-data class ComputedQueryValue<out V>(
+private data class ComputedQueryValue<out V>(
     val modified: QueryVersion,
     val checked: QueryVersion,
     val value: V,
@@ -23,74 +18,14 @@ data class ComputedQueryValue<out V>(
     override fun computed(): ComputedQueryValue<V> = this
 }
 
-data object InProgressQueryValue : DependentQueryValue<Nothing> {
+private data object InProgressQueryValue : DependentQueryValue<Nothing> {
     override fun computed(): ComputedQueryValue<Nothing>? = null
-}
-
-
-sealed interface Query<in K : Id, out V> {
-    context(QueryAccessor)
-    operator fun get(key: K): V
-
-    fun lastModified(key: K): QueryVersion
-}
-
-sealed interface SingletonQuery<out V> : Query<UnitId, V> {
-    context(QueryAccessor)
-    val value: V
-    val lastModified: QueryVersion
-    context(QueryAccessor) override fun get(key: UnitId): V = value
-    override fun lastModified(key: UnitId): QueryVersion = lastModified
-}
-
-class SingletonInputQuery<V>(private val versionData: QueryVersionData, starting: V) : SingletonQuery<V> {
-    override var lastModified = versionData.current
-        private set
-
-
-    private var backing: V = starting
-
-    fun update(new: V) {
-        lastModified = versionData.current
-        backing = new
-    }
-
-    context(QueryAccessor) override val value: V
-        get() {
-            contextMember().addDependency(QueryKey(this, UnitId))
-            return backing
-        }
-}
-
-class InputQuery<in K : Id, V>(private val versionData: QueryVersionData, private val default: () -> V) : Query<K, V> {
-    private val backing: IdList<K, InputQueryValue<V>> = IdList()
-
-    operator fun contains(key: K) = backing[key] != null
-
-    private fun getFull(key: K): InputQueryValue<V> = backing[key] ?: run {
-        val result = InputQueryValue(versionData.current, default())
-        backing[key] = result
-        result
-    }
-
-    context(QueryAccessor)
-    override fun get(key: K): V = run {
-        contextMember<QueryAccessor>().addDependency(QueryKey(this, key))
-        getFull(key).value
-    }
-
-    override fun lastModified(key: K): QueryVersion =
-        getFull(key).modified
-
-    operator fun set(key: K, value: V) {
-        backing[key] = InputQueryValue(versionData.current, value)
-    }
 }
 
 class DependentQuery<in K : Id, out V>(
     private val versionData: QueryVersionData,
     private val equalityFun: (old: V, new: V) -> Boolean = { a, b -> a == b },
-    private val cycleHandler: (key: K) -> V = { error("Unexpected cycle") },
+    private val cycleHandler: (key: K) -> V = { throw QueryCycleException() },
     private val updateFn: (QueryAccessor.(key: K, oldValue: V) -> V)? = null,
     private val computeFn: QueryAccessor.(key: K) -> V,
 ) : Query<K, V> {
@@ -129,9 +64,6 @@ class DependentQuery<in K : Id, out V>(
             val newValue = with(QueryAccessor(deps)) {
                 updateFn?.let { it(key, lastComputed.value) } ?: computeFn(key)
             }
-
-            // Check if we've already hit a cycle
-            backing[key]!!.computed()?.let { return it }
 
             ComputedQueryValue(
                 modified = if (equalityFun(newValue, lastComputed.value)) lastComputed.modified else version,
@@ -195,15 +127,4 @@ class DependentSingletonQuery<out V>(
             addDependency(QueryKey(this, UnitId))
             return getFull().value
         }
-}
-
-data class QueryKey<K : Id, out V>(val query: Query<K, V>, val key: K) {
-    fun lastModified() = query.lastModified(key)
-}
-
-@JvmInline
-value class QueryAccessor internal constructor(private val dependencies: MutableList<in QueryKey<*, *>>) {
-    internal fun addDependency(key: QueryKey<*, *>) {
-        dependencies.add(key)
-    }
 }

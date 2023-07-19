@@ -31,6 +31,8 @@ data class TypeDAG(
                 "${it.key.qualify(interners)}: ${it.value.qualify(interners)}"
             }
         }"
+
+    fun isEmpty(): Boolean = lowest.isEmpty()
 }
 
 val emptyTypeDAG: TypeDAG = TypeDAG(persistentSetOf(), persistentMapOf())
@@ -43,7 +45,7 @@ tailrec fun Map<TypeHandle, TypeDAGNode>.resolveParam(
     val paramHandle = interners.typeParamIds.getKey(param)
     val parent = paramHandle.parent
 
-    val id = interners.typeIds.get(parent) ?: return TypeInstance(param.asType(), emptyList(), nullable)
+    val id = interners.typeIds[parent] ?: return TypeInstance(param.asType(), emptyList(), nullable)
 
     val handle = id.asType()
 

@@ -18,6 +18,7 @@ import pistonlang.compiler.common.parser.nodes.*
 import pistonlang.compiler.common.queries.*
 import pistonlang.compiler.common.types.TypeInstance
 import pistonlang.compiler.common.types.unknownInstance
+import pistonlang.compiler.common.types.unspecifiedInstance
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
 import pistonlang.compiler.piston.parser.PistonType
 import pistonlang.compiler.util.findFirst
@@ -421,7 +422,6 @@ class PistonLanguageHandler(
         node.childSequence
             .filter { it.type == PistonType.typeBound }
             .forEach { bound ->
-                // TODO: Handle errors
                 val ident = bound.firstDirectChild(PistonType.identifier) ?: return@forEach
                 val name = ident.content
                 val param = params[name]?.first() ?: return@forEach
@@ -550,9 +550,8 @@ class PistonLanguageHandler(
 
         val expectedArgs = first.asMember?.let { mainQueries.typeParams[it].ids.size } ?: 0
 
-        // TODO: Keep track of errors
         val endArgs = when {
-            args.size < expectedArgs -> args + List(expectedArgs - args.size) { unknownInstance }
+            args.size < expectedArgs -> args + List(expectedArgs - args.size) { unspecifiedInstance }
             args.size > expectedArgs -> args.dropLast(args.size - expectedArgs)
             else -> args
         }
