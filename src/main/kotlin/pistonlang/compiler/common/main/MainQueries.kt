@@ -18,15 +18,29 @@ import pistonlang.compiler.util.SingletonIterator
 import java.util.*
 import kotlin.collections.ArrayDeque
 
-class MainQueries internal constructor(
+
+interface MainQueries {
+    val stlTypes: SingletonQuery<STLTypes>
+    val packageHandleNode: Query<PackageId, PackageTreeNode>
+    val packageItems: Query<PackageId, Map<String, List<ItemHandle>>>
+    val childItems: Query<MemberId, Map<String, List<MemberId>>>
+    val typeParams: Query<MemberId, TypeParamData>
+    val defaultInstance: Query<TypeId, TypeInstance>
+    val supertypeDAG: Query<TypeId, SupertypeDAG>
+
+    context(QueryAccessor)
+    fun packageTreeIterator(startId: PackageId): Iterator<PackageId>
+}
+
+internal class DefaultMainQueries(
     versionData: QueryVersionData,
     private val interners: InstanceInterners,
     private val inputs: InputQueries,
-) {
-    private val childHandler: Query<MemberId, LanguageHandler<*>?> =
+) : MainQueries {
+    private val childHandler: Query<MemberId, LanguageHandler<*>> =
         DependentQuery(versionData, computeFn = ::findChildHandler)
 
-    val stlTypes: SingletonQuery<STLTypes> = DependentSingletonQuery(versionData) {
+    override val stlTypes: SingletonQuery<STLTypes> = DependentSingletonQuery(versionData) {
         val items = interners.packIds[PackagePath("piston")]
             ?.let { packageItems[it] }
 
@@ -50,25 +64,25 @@ class MainQueries internal constructor(
         items?.get(name)?.get(0)?.asMember?.let { interners.typeIds[it]?.asType() } ?: missingSTLType
 
     context(QueryAccessor)
-    private fun findChildHandler(id: MemberId): LanguageHandler<*>? = interners.memberIds.getKey(id).parent.match(
+    private fun findChildHandler(id: MemberId): LanguageHandler<*> = interners.memberIds.getKey(id).parent.match(
         onFile = { inputs.fileHandler[it] },
         onMember = { childHandler[it] }
     )
 
-    val packageHandleNode: Query<PackageId, PackageTreeNode> = DependentQuery(
+    override val packageHandleNode: Query<PackageId, PackageTreeNode> = DependentQuery(
         versionData,
         equalityFun = { old, new -> old.lastUpdated == new.lastUpdated },
         computeFn = { key -> inputs.packageTree.value.nodes[key]!! }
     )
 
-    val packageItems: Query<PackageId, Map<String, List<ItemHandle>>> = DependentQuery(versionData) fn@{ key ->
+    override val packageItems: Query<PackageId, Map<String, List<ItemHandle>>> = DependentQuery(versionData) fn@{ key ->
         val node = packageHandleNode[key]
         val res = mutableMapOf<String, MutableList<ItemHandle>>()
         node.children.forEach { (name, handle) ->
             res.getOrPut(name) { mutableListOf() }.add(handle.asItem())
         }
         node.files.forEach { file ->
-            val handler = inputs.fileHandler[file] ?: return@forEach
+            val handler = inputs.fileHandler[file]
             val items = handler.fileItems[file]
             MemberType.entries.forEach { type ->
                 items.iteratorFor(type).forEach { (name, list) ->
@@ -84,9 +98,9 @@ class MainQueries internal constructor(
         res
     }
 
-    val childItems: Query<MemberId, Map<String, List<MemberId>>> = DependentQuery(versionData) fn@{ key ->
+    override val childItems: Query<MemberId, Map<String, List<MemberId>>> = DependentQuery(versionData) fn@{ key ->
         val res = mutableMapOf<String, MutableList<MemberId>>()
-        val handler = childHandler[key] ?: return@fn emptyMap<String, List<MemberId>>()
+        val handler = childHandler[key]
         MemberType.entries.forEach { type ->
             handler.childItems[key].iteratorFor(type).forEach { (name, list) ->
                 list.indices.forEach { index ->
@@ -100,8 +114,8 @@ class MainQueries internal constructor(
         res
     }
 
-    val typeParams: Query<MemberId, TypeParamData> = DependentQuery(versionData) fn@{ key ->
-        val handler = childHandler[key] ?: return@fn emptyTypeParamData
+    override val typeParams: Query<MemberId, TypeParamData> = DependentQuery(versionData) fn@{ key ->
+        val handler = childHandler[key]
         val mapped = handler.typeParams[key].mapIndexed { index, (name) ->
             val id = interners.typeParamIds.getOrAdd(TypeParamHandle(key, index))
             name to id
@@ -110,7 +124,7 @@ class MainQueries internal constructor(
         TypeParamData(mapped.map { it.second }, mapped.groupBy({ it.first }) { it.second })
     }
 
-    val defaultInstance: Query<TypeId, TypeInstance> = DependentQuery(versionData) fn@{ key ->
+    override val defaultInstance: Query<TypeId, TypeInstance> = DependentQuery(versionData) fn@{ key ->
         val memberId = interners.typeIds.getKey(key)
         val args = typeParams[memberId].ids.map { TypeInstance(it.asType(), emptyList(), false) }
 
@@ -118,13 +132,12 @@ class MainQueries internal constructor(
     }
 
 
-    val supertypeData: Query<TypeId, SupertypeData> = DependentQuery(
+    override val supertypeDAG: Query<TypeId, SupertypeDAG> = DependentQuery(
         versionData,
-        cycleHandler = { SupertypeData(emptyTypeDAG, setOf(it)) },
+        cycleHandler = { SupertypeDAG(emptyTypeDAG, setOf(it)) },
         computeFn = fn@{ key ->
-            val handle = key.asType()
             val memberId = interners.typeIds.getKey(key)
-            val handler = childHandler[memberId] ?: return@fn emptySupertypeData
+            val handler = childHandler[memberId]
             val superTypes = handler.supertypes[key].data
             val typeArgs = defaultInstance[key].args
             val excluding = mutableSetOf<TypeId>()
@@ -137,26 +150,25 @@ class MainQueries internal constructor(
                     mergeDAGs(acc, value.dag)
                 }
                 .let {
-                    val any = stlTypes.value.any
-                    if (it.isEmpty() && handle != any) TypeDAG(
+                    val any = stlTypes.value.any.asType
+                    if (any != null && it.isEmpty() && key != any) TypeDAG(
                         persistentSetOf(any),
-                        persistentMapOf<TypeHandle, TypeDAGNode>().put(any, emptyTypeDAGNode)
+                        persistentMapOf<TypeId, TypeDAGNode>().put(any, emptyTypeDAGNode)
                     ) else it
                 }
 
             val dag = TypeDAG(
-                persistentSetOf(handle),
-                withoutCurr.nodes.put(handle, TypeDAGNode(typeArgs, withoutCurr.lowest))
+                persistentSetOf(key),
+                withoutCurr.nodes.put(key, TypeDAGNode(typeArgs, withoutCurr.lowest))
             )
 
-            SupertypeData(dag, excluding)
+            SupertypeDAG(dag, excluding)
         })
 
     context(QueryAccessor)
-    private fun newDAGFor(instance: TypeInstance, on: TypeId): SupertypeData? {
+    private fun newDAGFor(instance: TypeInstance, on: TypeId): SupertypeDAG? {
         val type = instance.type.asType ?: return null
-        val handle = type.asType()
-        val oldData = supertypeData[type]
+        val oldData = supertypeDAG[type]
         val oldDAG = oldData.dag
 
         if (oldDAG.isEmpty()) return oldData
@@ -164,7 +176,7 @@ class MainQueries internal constructor(
         return if (oldData.excluding.contains(on)) null else oldData.copy(
             dag = TypeDAG(
                 oldDAG.lowest,
-                oldDAG.nodes.put(handle, TypeDAGNode(instance.args, oldDAG.nodes[handle]!!.parents))
+                oldDAG.nodes.put(type, TypeDAGNode(instance.args, oldDAG.nodes[type]!!.parents))
             )
         )
     }
@@ -205,9 +217,9 @@ class MainQueries internal constructor(
 
     private fun checkArgs(
         left: List<TypeInstance>,
-        leftNodes: Map<TypeHandle, TypeDAGNode>,
+        leftNodes: Map<TypeId, TypeDAGNode>,
         right: List<TypeInstance>,
-        rightNodes: Map<TypeHandle, TypeDAGNode>
+        rightNodes: Map<TypeId, TypeDAGNode>
     ): List<TypeInstance> = left.zip(right) { l, r ->
         if (l.nullable != r.nullable) return@zip conflictingArgumentInstance
 
@@ -221,7 +233,7 @@ class MainQueries internal constructor(
     }
 
     context(QueryAccessor)
-    fun packageTreeIterator(startId: PackageId) = object : Iterator<PackageId> {
+    override fun packageTreeIterator(startId: PackageId) = object : Iterator<PackageId> {
         val stack = Stack<Iterator<PackageId>>()
         var iter: Iterator<PackageId> = SingletonIterator(startId)
 

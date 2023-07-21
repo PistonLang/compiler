@@ -13,7 +13,7 @@ class SupertypeDAGTest {
         data("foo.pi") {
             """
                 trait A[T]
-                                
+                
                 trait B <: A[Int32]
                 
                 trait C[T, S] <: A[T]
@@ -76,7 +76,7 @@ class SupertypeDAGTest {
                 .memberHierarchyIterator(queries)
                 .asSequence()
                 .mapNotNull { interners.typeIds[it] }
-                .map { queries.supertypeData[it].dag }
+                .map { queries.supertypeDAG[it].dag }
                 .joinToString(separator = "\n") { it.qualify(interners) }
         }
 

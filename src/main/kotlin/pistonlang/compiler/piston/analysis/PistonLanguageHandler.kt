@@ -4,10 +4,9 @@ import pistonlang.compiler.common.files.PackagePath
 import pistonlang.compiler.common.files.rootPackage
 import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.items.handles.ItemType
-import pistonlang.compiler.common.items.handles.MemberHandle
 import pistonlang.compiler.common.items.handles.ParentHandle
 import pistonlang.compiler.common.items.handles.asItem
-import pistonlang.compiler.common.language.LanguageHandler
+import pistonlang.compiler.common.language.*
 import pistonlang.compiler.common.main.FileInputQueries
 import pistonlang.compiler.common.main.MainInterners
 import pistonlang.compiler.common.main.MainQueries
@@ -17,6 +16,7 @@ import pistonlang.compiler.common.parser.RelativeNodeLoc
 import pistonlang.compiler.common.parser.nodes.*
 import pistonlang.compiler.common.queries.*
 import pistonlang.compiler.common.types.TypeInstance
+import pistonlang.compiler.common.types.TypeParamBound
 import pistonlang.compiler.common.types.unknownInstance
 import pistonlang.compiler.common.types.unspecifiedInstance
 import pistonlang.compiler.piston.parser.PistonSyntaxSets
@@ -38,7 +38,7 @@ class PistonLanguageHandler(
     private val mainQueries: MainQueries,
     private val interners: MainInterners,
 ) : LanguageHandler<PistonType> {
-    override val extensions: List<String> = listOf("pi")
+    override val extension: String get() = "pi"
 
     private val constants: SingletonQuery<PistonConstants> = DependentSingletonQuery(versionData) {
         val defaultImports = interners.packIds[PackagePath("piston")]?.let { pistonId ->
@@ -62,17 +62,13 @@ class PistonLanguageHandler(
 
         PistonConstants(
             baseScope = StaticScope(null, defaultImports),
-            emptyImportData = ImportData(emptyList(), emptyMap()),
             errorSupertypeData = SupertypeData(emptyList(), nonEmptyListOf(unknownInstance)),
             emptySupertypeData = SupertypeData(emptyList(), nonEmptyListOf(stlTypes.anyInstance)),
-            errorReturnData = ReturnData(emptyList(), unknownInstance),
             unitReturnData = ReturnData(emptyList(), stlTypes.unitInstance),
-            emptyParamData = ParamData(emptyList(), emptyList()),
-            emptyTypeBoundData = TypeBoundData(emptyList(), emptyList())
         )
     }
 
-    private val ast: DependentQuery<FileId, GreenNode<PistonType>> =
+    private val ast: Query<FileId, GreenNode<PistonType>> =
         DependentQuery(versionData, equalityFun = { _, _ -> false }) { key ->
             val data = inputQueries.code[key]
             if (!data.valid) emptyNode else {
@@ -99,14 +95,8 @@ class PistonLanguageHandler(
         )
     }
 
-    private val astNode: DependentQuery<MemberId, GreenNode<PistonType>?> =
+    private val astNode: Query<MemberId, GreenNode<PistonType>?> =
         DependentQuery(versionData, computeFn = ::getASTNode)
-
-    context(QueryAccessor)
-    fun parentRelativeLocation(handle: MemberHandle): RelativeNodeLoc<PistonType>? = handle.parent.match(
-        onFile = { parent -> fileItems[parent] },
-        onMember = { parent -> childItems[parent] },
-    )[handle.type, handle.name, handle.id]
 
     override val fileItems: Query<FileId, MemberList<PistonType>> = DependentQuery(versionData) { key ->
         val res = MutableMemberList<PistonType>()
@@ -121,7 +111,7 @@ class PistonLanguageHandler(
     override val childItems: Query<MemberId, MemberList<PistonType>> = DependentQuery(versionData) fn@{ key ->
         val res = MutableMemberList<PistonType>()
 
-        val node = (astNode[key] ?: return@fn res.toImmutable()).asRoot()
+        val node = (astNode[key] ?: return@fn emptyMemberList).asRoot()
 
         node.lastDirectChild(PistonType.statementBlock)?.let { block ->
             block.childSequence
@@ -146,8 +136,8 @@ class PistonLanguageHandler(
         val fileAst = ast[key]
 
         val importNode = fileAst
-            .firstDirectRawChildOr(PistonType.import) { return@fn constants.value.emptyImportData }
-            .firstDirectRawChildOr(PistonType.importGroup) { return@fn constants.value.emptyImportData }
+            .firstDirectRawChildOr(PistonType.import) { return@fn emptyImportData }
+            .firstDirectRawChildOr(PistonType.importGroup) { return@fn emptyImportData }
             .asRoot()
 
         val deps = mutableListOf<HandleData<PistonType>>()
@@ -342,7 +332,7 @@ class PistonLanguageHandler(
                 .let { listOf(it.parentRelativeLocation) }
         }
 
-    override val supertypes: Query<TypeId, SupertypeData> =
+    override val supertypes: Query<TypeId, SupertypeData<PistonType>> =
         DependentQuery(versionData) fn@{ key ->
             val memberId = interners.typeIds.getKey(key)
             val consts = constants.value
@@ -363,13 +353,11 @@ class PistonLanguageHandler(
             if (types.isEmpty()) consts.emptySupertypeData else SupertypeData(deps, types.assertNonEmpty())
         }
 
-    val returnType: Query<MemberId, ReturnData> =
+    override val returnType: Query<MemberId, ReturnData<PistonType>> =
         DependentQuery(versionData) fn@{ key ->
-            val consts = constants.value
-
-            val node = (astNode[key] ?: return@fn consts.errorReturnData)
-                .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn consts.unitReturnData }
-                .firstDirectRawChildOr(PistonSyntaxSets.types) { return@fn consts.errorReturnData }
+            val node = (astNode[key] ?: return@fn errorReturnData)
+                .firstDirectRawChildOr(PistonType.typeAnnotation) { return@fn constants.value.unitReturnData }
+                .firstDirectRawChildOr(PistonSyntaxSets.types) { return@fn errorReturnData }
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
@@ -380,12 +368,12 @@ class PistonLanguageHandler(
             ReturnData(deps, type)
         }
 
-    val params: Query<MemberId, ParamData> =
+    override val params: Query<MemberId, ParamData<PistonType>> =
         DependentQuery(versionData) fn@{ key ->
             val node = astNode[key]
                 ?.firstDirectRawChild(PistonType.functionParams)
                 ?.asRoot()
-                ?: return@fn constants.value.emptyParamData
+                ?: return@fn emptyParamData
 
             val deps = mutableListOf<HandleData<PistonType>>()
             val scope = typeParamScope[key]
@@ -404,34 +392,34 @@ class PistonLanguageHandler(
             ParamData(deps, params)
         }
 
-    val typeParamBounds: DependentQuery<MemberId, TypeBoundData> = DependentQuery(versionData) fn@{ key ->
+    override val typeParamBounds: Query<MemberId, TypeBoundData<PistonType>> = DependentQuery(versionData) fn@{ key ->
         val params = mainQueries.typeParams[key].nameMap
-        if (params.isEmpty()) return@fn constants.value.emptyTypeBoundData
-        val node = astNode[key]!!
-            .firstDirectRawChild(PistonType.typeParams)!!
-            .firstDirectRawChildOr(PistonType.typeGuard) {
-                return@fn TypeBoundData(emptyList(), List(params.size) { emptyList<TypeInstance>() })
-            }
-            .asRoot()
+        if (params.isEmpty()) return@fn emptyTypeBoundData
+        val node = astNode[key]
+            ?.firstDirectRawChild(PistonType.typeParams)
+            ?.firstDirectRawChild(PistonType.typeGuard)
+            ?.asRoot() ?: return@fn emptyTypeBoundData
 
         val deps = mutableListOf<HandleData<PistonType>>()
         val scope = typeParamScope[key]
 
-        val res = MutableList(params.size) { mutableListOf<TypeInstance>() }
+        val res = mutableListOf<TypeParamBound>()
 
         node.childSequence
             .filter { it.type == PistonType.typeBound }
             .forEach { bound ->
                 val ident = bound.firstDirectChild(PistonType.identifier) ?: return@forEach
                 val name = ident.content
-                val param = params[name]?.first() ?: return@forEach
+                val param = params[name]?.first() ?: run {
+                    deps.add(HandleData(ident.location, invalidPathHandleList))
+                    return@forEach
+                }
                 deps.add(HandleData(ident.location, nonEmptyListOf(param.asItem())))
                 val typeNode = bound.firstDirectChild(PistonSyntaxSets.types)
                 val instance =
                     if (typeNode == null) unknownInstance
                     else handleTypeNode(typeNode, deps, scope, false)
-                val index = interners.typeParamIds.getKey(param).index
-                res[index].add(instance)
+                res.add(TypeParamBound(param, instance))
             }
 
         TypeBoundData(deps, res)

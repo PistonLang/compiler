@@ -20,4 +20,4 @@ data class HandleData<out Type : SyntaxType>(
 val invalidPathHandleList = nonEmptyListOf(HandleError.InvalidPathToken.asItem())
 
 typealias DependencyList<Type> = List<HandleData<Type>>
-data class Dependent<Type : SyntaxType, out Data>(val dependencies: DependencyList<Type>, val data: Data)
+data class Dependent<out Type : SyntaxType, out Data>(val dependencies: DependencyList<Type>, val data: Data)

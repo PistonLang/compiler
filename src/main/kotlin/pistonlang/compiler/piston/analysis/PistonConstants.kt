@@ -1,12 +1,12 @@
 package pistonlang.compiler.piston.analysis
 
+import pistonlang.compiler.common.language.ReturnData
+import pistonlang.compiler.common.language.SupertypeData
+import pistonlang.compiler.piston.parser.PistonType
+
 class PistonConstants(
     val baseScope: Scope,
-    val emptyImportData: ImportData,
-    val errorSupertypeData: SupertypeData,
-    val emptySupertypeData: SupertypeData,
-    val errorReturnData: ReturnData,
-    val unitReturnData: ReturnData,
-    val emptyParamData: ParamData,
-    val emptyTypeBoundData: TypeBoundData,
+    val errorSupertypeData: SupertypeData<PistonType>,
+    val emptySupertypeData: SupertypeData<PistonType>,
+    val unitReturnData: ReturnData<PistonType>,
 )

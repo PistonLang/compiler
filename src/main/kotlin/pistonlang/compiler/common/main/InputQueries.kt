@@ -16,16 +16,16 @@ interface FileInputQueries {
 
 interface InputQueries : FileInputQueries {
     val packageTree: SingletonQuery<PackageTree>
-    val fileHandler: Query<FileId, LanguageHandler<*>?>
+    val fileHandler: Query<FileId, LanguageHandler<*>>
 }
 
-internal class DefaultInputQueries(versionData: QueryVersionData) : InputQueries {
+internal class DefaultInputQueries(versionData: QueryVersionData, defaultHandler: DefaultHandler) : InputQueries {
     override val code: InputQuery<FileId, FileData> =
         InputQuery(versionData) { invalidFileData }
     override val filePackage: InputQuery<FileId, PackageId?> =
         InputQuery(versionData) { null }
     override val packageTree: SingletonInputQuery<PackageTree> =
         SingletonInputQuery(versionData, PackageTree(persistentMapOf()))
-    override val fileHandler: InputQuery<FileId, LanguageHandler<*>?> =
-        InputQuery(versionData) { null }
+    override val fileHandler: InputQuery<FileId, LanguageHandler<*>> =
+        InputQuery(versionData) { defaultHandler }
 }

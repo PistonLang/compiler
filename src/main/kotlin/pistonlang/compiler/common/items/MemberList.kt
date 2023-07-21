@@ -15,13 +15,15 @@ enum class MemberType(val newType: Boolean = false) {
 }
 
 @JvmInline
-value class MemberList<Type : SyntaxType> internal constructor(private val list: List<Map<String, List<RelativeNodeLoc<Type>>>>) {
+value class MemberList<out Type : SyntaxType> internal constructor(private val list: List<Map<String, List<RelativeNodeLoc<Type>>>>) {
 
     fun iteratorFor(type: MemberType) = list[type.ordinal].iterator()
 
     operator fun get(type: MemberType, name: String, index: Int): RelativeNodeLoc<Type>? =
         list[type.ordinal][name]?.get(index)
 }
+
+val emptyMemberList = MemberList(List(MemberType.entries.size) { emptyMap<String, List<RelativeNodeLoc<Nothing>>>() })
 
 @JvmInline
 value class MutableMemberList<Type : SyntaxType> private constructor(private val list: MutableList<MutableMap<String, MutableList<RelativeNodeLoc<Type>>>>) {

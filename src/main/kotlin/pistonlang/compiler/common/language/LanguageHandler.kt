@@ -11,11 +11,11 @@ import pistonlang.compiler.util.lists.NonEmptyList
  * A [LanguageHandler] handles language specific queries, as opposed to
  * a [pistonlang.compiler.common.main.CompilerInstance] which handles general queries
  */
-interface LanguageHandler<Type : SyntaxType> {
+interface LanguageHandler<out Type : SyntaxType> {
     /**
-     * List of file extensions that correspond to this handler
+     * The unique extension this handler is made for
      */
-    val extensions: List<String>
+    val extension: String
 
     /**
      * List of items contained in a file
@@ -40,5 +40,22 @@ interface LanguageHandler<Type : SyntaxType> {
     /**
      * List of supertypes of a declared type
      */
-    val supertypes: Query<TypeId, Dependent<PistonType, NonEmptyList<TypeInstance>>>
+    val supertypes: Query<TypeId, SupertypeData<Type>>
+
+    /**
+     * List of bounds of type parameter bounds
+     */
+    val typeParamBounds: Query<MemberId, TypeBoundData<Type>>
+
+    /**
+     * The types of a function or setter's parameters
+     * This is expected to return an empty list for other types of handles
+     */
+    val params: Query<MemberId, ParamData<Type>>
+
+    /**
+     * The return type of a function, getter, setter; the type of a val or var
+     * It may return any type instance for type definitions
+     */
+    val returnType: Query<MemberId, ReturnData<Type>>
 }
