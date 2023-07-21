@@ -13,12 +13,16 @@ fun Pair<Qualifiable, Qualifiable>.qualify(interners: MainInterners) =
 fun Pair<Qualifiable, Any>.qualify(interners: MainInterners) =
     "${first.qualify(interners)}: $second"
 
+@JvmName("qualifyList")
+fun Pair<Qualifiable, Iterable<Qualifiable>>.qualify(interners: MainInterners) =
+    "${first.qualify(interners)}: ${second.qualify(interners)}"
+
 @JvmName("qualifyDependentPair")
 fun Pair<Qualifiable, Dependent<*, Qualifiable>>.qualify(interners: MainInterners) =
     "${first.qualify(interners)}: ${second.qualify(interners)}"
 
 @JvmName("qualifyDependentListPair")
-fun Pair<Qualifiable, Dependent<*, List<Qualifiable>>>.qualify(interners: MainInterners) =
+fun Pair<Qualifiable, Dependent<*, Iterable<Qualifiable>>>.qualify(interners: MainInterners) =
     "${first.qualify(interners)}: ${second.qualify(interners)}"
 
 fun Iterable<Qualifiable>.qualify(interners: MainInterners): String =
@@ -29,7 +33,7 @@ fun Dependent<*, Qualifiable>.qualify(interners: MainInterners): String =
     "Dependent(${dependencies.qualify(interners)}, ${data.qualify(interners)})"
 
 @JvmName("qualifyList")
-fun Dependent<*, List<Qualifiable>>.qualify(interners: MainInterners): String =
+fun Dependent<*, Iterable<Qualifiable>>.qualify(interners: MainInterners): String =
     "Dependent(${dependencies.qualify(interners)}, ${data.qualify(interners)})"
 
 fun Dependent<*, *>.qualify(interners: MainInterners): String =

@@ -32,32 +32,32 @@ class SupertypeDAGTest {
 
     private val expected = """
         TypeDAG([Trait(FilePath(path=foo.pi), A, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), A, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), A, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }
         TypeDAG([Trait(FilePath(path=foo.pi), B, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), A, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), B, 0): Node([], [Trait(FilePath(path=foo.pi), A, 0)])
         }
         TypeDAG([Trait(FilePath(path=foo.pi), C, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), A, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), C, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), C, 0): Node([TypeParam(Trait(FilePath(path=foo.pi), C, 0), 0), TypeParam(Trait(FilePath(path=foo.pi), C, 0), 1)], [Trait(FilePath(path=foo.pi), A, 0)])
         }
         TypeDAG([Trait(FilePath(path=foo.pi), D, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), A, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=foo.pi), B, 0): Node([], [Trait(FilePath(path=foo.pi), A, 0)])
         	Trait(FilePath(path=foo.pi), C, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0), MultiInstanceClass(FilePath(path=piston.bools.pi), Bool, 0)], [Trait(FilePath(path=foo.pi), A, 0)])
         	Trait(FilePath(path=foo.pi), D, 0): Node([], [Trait(FilePath(path=foo.pi), B, 0), Trait(FilePath(path=foo.pi), C, 0)])
         }
         TypeDAG([Trait(FilePath(path=cycle.pi), Foo, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=cycle.pi), Foo, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }
         TypeDAG([Trait(FilePath(path=cycle.pi), Bar, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [])
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         	Trait(FilePath(path=cycle.pi), Bar, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }
     """.trimIndent()

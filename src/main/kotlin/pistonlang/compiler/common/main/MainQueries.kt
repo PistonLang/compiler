@@ -1,14 +1,10 @@
 package pistonlang.compiler.common.main
 
-import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import pistonlang.compiler.common.files.PackagePath
 import pistonlang.compiler.common.files.PackageTreeNode
-import pistonlang.compiler.common.items.MemberId
-import pistonlang.compiler.common.items.MemberType
-import pistonlang.compiler.common.items.PackageId
-import pistonlang.compiler.common.items.TypeId
+import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.items.handles.*
 import pistonlang.compiler.common.language.LanguageHandler
 import pistonlang.compiler.common.main.stl.STLTypes
@@ -27,6 +23,9 @@ interface MainQueries {
     val typeParams: Query<MemberId, TypeParamData>
     val defaultInstance: Query<TypeId, TypeInstance>
     val supertypeDAG: Query<TypeId, SupertypeDAG>
+    val params: Query<MemberId, List<TypeInstance>>
+    val returnType: Query<MemberId, TypeInstance>
+    val typeParamBounds: Query<MemberId, List<TypeParamBounds>>
 
     context(QueryAccessor)
     fun packageTreeIterator(startId: PackageId): Iterator<PackageId>
@@ -145,16 +144,9 @@ internal class DefaultMainQueries(
             val withoutCurr = superTypes
                 .asSequence()
                 .mapNotNull { newDAGFor(it, key) }
-                .fold(emptyTypeDAG) { acc, value ->
+                .fold(stlTypes.value.anyDAG) { acc, value ->
                     excluding.addAll(value.excluding)
                     mergeDAGs(acc, value.dag)
-                }
-                .let {
-                    val any = stlTypes.value.any.asType
-                    if (any != null && it.isEmpty() && key != any) TypeDAG(
-                        persistentSetOf(any),
-                        persistentMapOf<TypeId, TypeDAGNode>().put(any, emptyTypeDAGNode)
-                    ) else it
                 }
 
             val dag = TypeDAG(
@@ -164,6 +156,14 @@ internal class DefaultMainQueries(
 
             SupertypeDAG(dag, excluding)
         })
+
+    override val params: Query<MemberId, List<TypeInstance>> = DependentQuery(versionData) { key ->
+        childHandler[key].params[key].data
+    }
+
+    override val returnType: Query<MemberId, TypeInstance> = DependentQuery(versionData) { key ->
+        childHandler[key].returnType[key].data
+    }
 
     context(QueryAccessor)
     private fun newDAGFor(instance: TypeInstance, on: TypeId): SupertypeDAG? {
@@ -230,6 +230,70 @@ internal class DefaultMainQueries(
             val args = checkArgs(newLeft.args, leftNodes, newRight.args, rightNodes)
             TypeInstance(newLeft.type, args, newLeft.nullable)
         } else conflictingArgumentInstance
+    }
+
+    override val typeParamBounds: Query<MemberId, List<TypeParamBounds>> =
+        DependentQuery(versionData) { key ->
+            val bounds = childHandler[key].typeParamBounds[key].data
+            val params = typeParams[key].ids
+            val baseBounds = stlTypes.value.anyParamBounds
+            val res = MutableList(params.size) { baseBounds }
+
+            bounds.forEach { (on, bound) ->
+                addBound(res, on, bound, key)
+            }
+
+            res
+        }
+
+    // TODO: Keep track of errors
+    context(QueryAccessor)
+    private fun addBound(
+        res: MutableList<TypeParamBounds>,
+        id: TypeParamId,
+        bound: TypeInstance,
+        key: MemberId
+    ) {
+        val currentHandle = interners.typeParamIds.getKey(id)
+        val current = res[currentHandle.index]
+        val nullable = current.canBeNullable && bound.nullable
+        bound.type.match(
+            onType = { typeId ->
+                if (typeId == stlTypes.value.nothing.asType) return
+                val boundDAG = supertypeDAG[typeId].dag
+                val boundNode = boundDAG.nodes[typeId]!!
+                val modifiedDAG = boundDAG.copy(
+                    nodes = boundDAG.nodes.put(typeId, boundNode.copy(args = bound.args))
+                )
+                res[currentHandle.index] = current.copy(
+                    lowerTypeBounds = mergeDAGs(current.lowerTypeBounds, modifiedDAG)
+                )
+            },
+            onTypeParam = { param ->
+                val handle = interners.typeParamIds.getKey(param)
+                if (handle.parent == key && hitBoundCycle(res, current, param, key)) return
+                val boundCurrent = res[handle.index]
+                res[handle.index] = boundCurrent.copy(
+                    upperVarBounds = boundCurrent.upperVarBounds.add(id)
+                )
+                res[currentHandle.index] = current.copy(
+                    lowerVarBounds = current.lowerVarBounds.add(param),
+                    canBeNullable = nullable
+                )
+            },
+            onError = { return }
+        )
+    }
+
+    private fun hitBoundCycle(
+        bounds: List<TypeParamBounds>,
+        current: TypeParamBounds,
+        adding: TypeParamId,
+        key: MemberId,
+    ): Boolean = current.lowerVarBounds.any { id ->
+        if (id == adding) return@any true
+        val handle = interners.typeParamIds.getKey(id)
+        handle.parent == key && hitBoundCycle(bounds, bounds[handle.index], adding, key)
     }
 
     context(QueryAccessor)

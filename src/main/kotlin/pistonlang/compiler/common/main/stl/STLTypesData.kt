@@ -1,7 +1,10 @@
 package pistonlang.compiler.common.main.stl
 
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
+import pistonlang.compiler.common.items.TypeId
 import pistonlang.compiler.common.items.handles.TypeHandle
-import pistonlang.compiler.common.types.TypeInstance
+import pistonlang.compiler.common.types.*
 
 data class STLTypes(
     val int8: TypeHandle,
@@ -22,4 +25,11 @@ data class STLTypes(
     val nullableNothingInstance = TypeInstance(nothing, emptyList(), true)
     val nothingInstance = TypeInstance(nothing, emptyList(), false)
     val unitInstance = TypeInstance(unit, emptyList(), false)
+    val anyDAG = any.asType?.let { any ->
+        TypeDAG(
+            persistentSetOf(any),
+            persistentMapOf<TypeId, TypeDAGNode>().put(any, TypeDAGNode(emptyList(), persistentSetOf(any)))
+        )
+    } ?: emptyTypeDAG
+    val anyParamBounds = TypeParamBounds(true, anyDAG, persistentSetOf(), persistentSetOf())
 }
