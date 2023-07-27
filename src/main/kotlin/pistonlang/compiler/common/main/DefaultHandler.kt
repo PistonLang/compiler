@@ -31,4 +31,6 @@ internal class DefaultHandler : LanguageHandler<Nothing> {
 
     override val typeParams: Query<MemberId, List<Pair<String, RelativeNodeLoc<Nothing>>>> =
         ConstantQuery(emptyList())
+
+    override val isImplemented: Query<MemberId, Boolean> = ConstantQuery(false)
 }

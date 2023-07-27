@@ -18,7 +18,9 @@ class SupertypeDAGTest {
                 
                 trait C[T, S] <: A[T]
                 
-                trait D <: B & C[Int32, Bool]                
+                trait D <: B & C[Int32, Bool]
+                          
+                trait E <: C[Int32, Int32]
             """.trimIndent()
         }
         data("cycle.pi") {
@@ -51,6 +53,12 @@ class SupertypeDAGTest {
         	Trait(FilePath(path=foo.pi), B, 0): Node([], [Trait(FilePath(path=foo.pi), A, 0)])
         	Trait(FilePath(path=foo.pi), C, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0), MultiInstanceClass(FilePath(path=piston.bools.pi), Bool, 0)], [Trait(FilePath(path=foo.pi), A, 0)])
         	Trait(FilePath(path=foo.pi), D, 0): Node([], [Trait(FilePath(path=foo.pi), B, 0), Trait(FilePath(path=foo.pi), C, 0)])
+        }
+        TypeDAG([Trait(FilePath(path=foo.pi), E, 0)]) {
+        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        	Trait(FilePath(path=foo.pi), A, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+        	Trait(FilePath(path=foo.pi), C, 0): Node([MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0), MultiInstanceClass(FilePath(path=piston.numbers.pi), Int32, 0)], [Trait(FilePath(path=foo.pi), A, 0)])
+        	Trait(FilePath(path=foo.pi), E, 0): Node([], [Trait(FilePath(path=foo.pi), C, 0)])
         }
         TypeDAG([Trait(FilePath(path=cycle.pi), Foo, 0)]) {
         	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])

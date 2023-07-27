@@ -43,7 +43,7 @@ interface LanguageHandler<out Type : SyntaxType> {
     val supertypes: Query<TypeId, SupertypeData<Type>>
 
     /**
-     * List of bounds of type parameter bounds
+     * List of type parameter bounds
      */
     val typeParamBounds: Query<MemberId, TypeBoundData<Type>>
 
@@ -58,4 +58,10 @@ interface LanguageHandler<out Type : SyntaxType> {
      * It may return any type instance for type definitions
      */
     val returnType: Query<MemberId, ReturnData<Type>>
+
+    /**
+     * Whether a function or property is implemented
+     * It may return anything for types
+     */
+    val isImplemented: Query<MemberId, Boolean>
 }

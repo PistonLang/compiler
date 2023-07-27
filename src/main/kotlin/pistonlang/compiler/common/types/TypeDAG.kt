@@ -37,7 +37,7 @@ data class TypeDAG(
 
 val emptyTypeDAG: TypeDAG = TypeDAG(persistentSetOf(), persistentMapOf())
 
-tailrec fun Map<TypeId, TypeDAGNode>.resolveParam(
+fun Map<TypeId, TypeDAGNode>.resolveParam(
     param: TypeParamId,
     nullable: Boolean,
     interners: MainInterners,
@@ -50,7 +50,5 @@ tailrec fun Map<TypeId, TypeDAGNode>.resolveParam(
     if (id !in this)
         return TypeInstance(param.asType(), emptyList(), nullable)
 
-    val instance = this[id]!!.args[paramHandle.index]
-    val type = instance.type
-    return resolveParam(type.asTypeParam ?: return instance, nullable || instance.nullable, interners)
+    return this[id]!!.args[paramHandle.index]
 }

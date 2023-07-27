@@ -1,5 +1,6 @@
 package pistonlang.compiler.common.main
 
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import pistonlang.compiler.common.files.PackagePath
@@ -26,7 +27,7 @@ interface MainQueries {
     val params: Query<MemberId, List<TypeInstance>>
     val returnType: Query<MemberId, TypeInstance>
     val typeParamBounds: Query<MemberId, List<TypeParamBounds>>
-
+    val virtualMembers: Query<TypeId, VirtualMembers>
     context(QueryAccessor)
     fun packageTreeIterator(startId: PackageId): Iterator<PackageId>
 }
@@ -133,29 +134,72 @@ internal class DefaultMainQueries(
 
     override val supertypeDAG: Query<TypeId, SupertypeDAG> = DependentQuery(
         versionData,
-        cycleHandler = { SupertypeDAG(emptyTypeDAG, setOf(it)) },
+        cycleHandler = { SupertypeDAG(emptyTypeDAG, setOf(it), emptySet()) },
         computeFn = fn@{ key ->
             val memberId = interners.typeIds.getKey(key)
             val handler = childHandler[memberId]
             val superTypes = handler.supertypes[key].data
             val typeArgs = defaultInstance[key].args
             val excluding = mutableSetOf<TypeId>()
+            val dependent = mutableSetOf<TypeId>()
 
             val withoutCurr = superTypes
                 .asSequence()
                 .mapNotNull { newDAGFor(it, key) }
                 .fold(stlTypes.value.anyDAG) { acc, value ->
                     excluding.addAll(value.excluding)
+                    dependent.addAll(value.dependent)
                     mergeDAGs(acc, value.dag)
                 }
 
-            val dag = TypeDAG(
+            val simpleDAG = TypeDAG(
                 persistentSetOf(key),
                 withoutCurr.nodes.put(key, TypeDAGNode(typeArgs, withoutCurr.lowest))
             )
 
-            SupertypeDAG(dag, excluding)
+            val newDependent = mutableSetOf<TypeId>()
+
+            val dag = dependent.fold(simpleDAG) { acc, curr ->
+                val (dag, toAdd) = updateDependent(curr, acc)
+                if (toAdd) newDependent.add(curr)
+                dag
+            }
+
+            if (typeArgs.isNotEmpty()) newDependent.add(key)
+
+            SupertypeDAG(dag, excluding, newDependent)
         })
+
+    context(QueryAccessor)
+    private fun updateDependent(id: TypeId, dag: TypeDAG): Pair<TypeDAG, Boolean> {
+        val node = dag.nodes[id]!!
+        var dependent = false
+        val newArgs = node.args.map {
+            val (curr, stillDependent) = updateInstanceArgs(it, dag)
+            dependent = dependent || stillDependent
+            curr
+        }
+        return dag.copy(nodes = dag.nodes.put(id, node.copy(args = newArgs))) to dependent
+    }
+
+    context(QueryAccessor)
+    private fun updateInstanceArgs(instance: TypeInstance, dag: TypeDAG): Pair<TypeInstance, Boolean> {
+        val type = instance.type
+        return type.asTypeParam?.let {
+            val param = interners.typeParamIds.getKey(it)
+            val parentId = interners.typeIds[param.parent]!!
+            val newInstance = dag.nodes[parentId]!!.args[param.index]
+            newInstance to (newInstance.type.type == TypeType.TypeParam)
+        } ?: run {
+            var toAdd = false
+            val newArgs = instance.args.map {
+                val (new, dependent) = updateInstanceArgs(it, dag)
+                toAdd = toAdd || dependent
+                new
+            }
+            instance.copy(args = newArgs) to toAdd
+        }
+    }
 
     override val params: Query<MemberId, List<TypeInstance>> = DependentQuery(versionData) { key ->
         childHandler[key].params[key].data
@@ -320,6 +364,21 @@ internal class DefaultMainQueries(
             findNext(pack)
             return pack
         }
+    }
+
+    override val virtualMembers: Query<TypeId, VirtualMembers> = DependentQuery(versionData) { key ->
+        val parents = supertypeDAG[key].dag
+
+        val functions = mutableMapOf<String, List<MemberId>>()
+        val getters = mutableMapOf<String, List<MemberId>>()
+        val setters = mutableMapOf<String, List<MemberId>>()
+        val overriders = persistentMapOf<MemberId, MemberId>()
+        val overrides = mutableMapOf<MemberId, List<MemberId>>()
+        val unimplemented = mutableSetOf<MemberId>()
+
+        // TODO
+
+        VirtualMembers(functions, getters, setters, overriders, overrides, unimplemented)
     }
 }
 

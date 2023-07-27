@@ -6,7 +6,7 @@ object EmptyIterator : MutableIterator<Nothing> {
     override fun remove() {}
 }
 
-class SingletonIterator<T>(val value: T) : Iterator<T> {
+class SingletonIterator<T>(private val value: T) : Iterator<T> {
     private var used: Boolean = false
 
     override fun next(): T {
@@ -31,7 +31,6 @@ object EmptySequence : Sequence<Nothing> {
     override fun iterator(): Iterator<Nothing> = EmptyIterator
 }
 
-class SingletonSequence<T>(value: T) : Sequence<T> {
-    private val iter = SingletonIterator(value)
-    override fun iterator() = iter
+class SingletonSequence<T>(private val value: T) : Sequence<T> {
+    override fun iterator() = SingletonIterator(value)
 }

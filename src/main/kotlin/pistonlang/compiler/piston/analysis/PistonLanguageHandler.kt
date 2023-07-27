@@ -607,4 +607,9 @@ class PistonLanguageHandler(
 
         StaticScope(parentScope, typeParams)
     }
+
+    override val isImplemented: Query<MemberId, Boolean> = DependentQuery(versionData) fn@{ key ->
+        val node = astNode[key] ?: return@fn false
+        node.firstDirectChild(PistonType.expressionBody) != null
+    }
 }
