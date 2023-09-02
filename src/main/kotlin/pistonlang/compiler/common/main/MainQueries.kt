@@ -1,7 +1,8 @@
 package pistonlang.compiler.common.main
 
-import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentHashMapOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.toPersistentSet
 import pistonlang.compiler.common.files.PackagePath
 import pistonlang.compiler.common.files.PackageTreeNode
@@ -37,6 +38,8 @@ internal class DefaultMainQueries(
     private val interners: InstanceInterners,
     private val inputs: InputQueries,
 ) : MainQueries {
+    private val typeVarFactory = TypeVarFactory()
+
     private val childHandler: Query<MemberId, LanguageHandler<*>> =
         DependentQuery(versionData, computeFn = ::findChildHandler)
 
@@ -134,72 +137,32 @@ internal class DefaultMainQueries(
 
     override val supertypeDAG: Query<TypeId, SupertypeDAG> = DependentQuery(
         versionData,
-        cycleHandler = { SupertypeDAG(emptyTypeDAG, setOf(it), emptySet()) },
+        cycleHandler = { SupertypeDAG(emptyTypeDAG, setOf(it)) },
         computeFn = fn@{ key ->
             val memberId = interners.typeIds.getKey(key)
             val handler = childHandler[memberId]
             val superTypes = handler.supertypes[key].data
-            val typeArgs = defaultInstance[key].args
             val excluding = mutableSetOf<TypeId>()
-            val dependent = mutableSetOf<TypeId>()
+            val typeArgs = typeParams[memberId].ids
+            val argVars = List(typeArgs.size) { typeVarFactory.next() }
+            val argsMap = typeArgs.zip(argVars).toMap()
 
             val withoutCurr = superTypes
                 .asSequence()
-                .mapNotNull { newDAGFor(it, key) }
+                .mapNotNull { newDAGFor(paramsToVariables(it, argsMap), key) }
                 .fold(stlTypes.value.anyDAG) { acc, value ->
                     excluding.addAll(value.excluding)
-                    dependent.addAll(value.dependent)
                     mergeDAGs(acc, value.dag)
                 }
 
             val simpleDAG = TypeDAG(
-                persistentSetOf(key),
-                withoutCurr.nodes.put(key, TypeDAGNode(typeArgs, withoutCurr.lowest))
+                persistentHashSetOf(key),
+                withoutCurr.nodes.put(key, TypeDAGNode(argVars, withoutCurr.lowest)),
+                withoutCurr.variables.setAll(argVars, typeArgs.map { it.toInstance() })
             )
 
-            val newDependent = mutableSetOf<TypeId>()
-
-            val dag = dependent.fold(simpleDAG) { acc, curr ->
-                val (dag, toAdd) = updateDependent(curr, acc)
-                if (toAdd) newDependent.add(curr)
-                dag
-            }
-
-            if (typeArgs.isNotEmpty()) newDependent.add(key)
-
-            SupertypeDAG(dag, excluding, newDependent)
+            SupertypeDAG(simpleDAG, excluding)
         })
-
-    context(QueryAccessor)
-    private fun updateDependent(id: TypeId, dag: TypeDAG): Pair<TypeDAG, Boolean> {
-        val node = dag.nodes[id]!!
-        var dependent = false
-        val newArgs = node.args.map {
-            val (curr, stillDependent) = updateInstanceArgs(it, dag)
-            dependent = dependent || stillDependent
-            curr
-        }
-        return dag.copy(nodes = dag.nodes.put(id, node.copy(args = newArgs))) to dependent
-    }
-
-    context(QueryAccessor)
-    private fun updateInstanceArgs(instance: TypeInstance, dag: TypeDAG): Pair<TypeInstance, Boolean> {
-        val type = instance.type
-        return type.asTypeParam?.let {
-            val param = interners.typeParamIds.getKey(it)
-            val parentId = interners.typeIds[param.parent]!!
-            val newInstance = dag.nodes[parentId]!!.args[param.index]
-            newInstance to (newInstance.type.type == TypeType.TypeParam)
-        } ?: run {
-            var toAdd = false
-            val newArgs = instance.args.map {
-                val (new, dependent) = updateInstanceArgs(it, dag)
-                toAdd = toAdd || dependent
-                new
-            }
-            instance.copy(args = newArgs) to toAdd
-        }
-    }
 
     override val params: Query<MemberId, List<TypeInstance>> = DependentQuery(versionData) { key ->
         childHandler[key].params[key].data
@@ -216,14 +179,19 @@ internal class DefaultMainQueries(
         val oldDAG = oldData.dag
 
         if (oldDAG.isEmpty()) return oldData
+        if (oldData.excluding.contains(on)) return null
 
-        return if (oldData.excluding.contains(on)) null else oldData.copy(
-            dag = TypeDAG(
-                oldDAG.lowest,
-                oldDAG.nodes.put(type, TypeDAGNode(instance.args, oldDAG.nodes[type]!!.parents))
-            )
-        )
+        val vars = oldDAG.nodes[type]!!.args
+        val newVars = oldDAG.variables.setAll(vars, instance.args)
+
+        return oldData.copy(dag = oldDAG.copy(variables = newVars))
     }
+
+    private fun paramsToVariables(instance: TypeInstance, mapping: Map<TypeParamId, TypeVar>): TypeInstance =
+        instance.asTypeParam()
+            ?.let { mapping[it] }
+            ?.toInstance(instance.nullable)
+            ?: instance.copy(args = instance.args.map { paramsToVariables(it, mapping) })
 
     private fun mergeDAGs(left: TypeDAG, right: TypeDAG): TypeDAG {
         if (left.nodes.size < right.nodes.size) return mergeDAGs(right, left)
@@ -232,45 +200,58 @@ internal class DefaultMainQueries(
         val newLowest = (left.lowest.asSequence().filter { it !in right.nodes || it in right.lowest } +
                 right.lowest.asSequence().filter { it !in left.nodes }).toPersistentSet()
         var nodes = left.nodes
+        var vars = left.variables
         val q = ArrayDeque(right.lowest)
 
         while (q.isNotEmpty()) {
             val curr = q.removeFirst()
             if (curr in nodes) {
-                val leftNode = nodes[curr]!!
-                val rightNode = right.nodes[curr]!!
-                nodes = nodes.put(
-                    curr,
-                    TypeDAGNode(
-                        checkArgs(leftNode.args, nodes, rightNode.args, right.nodes),
-                        leftNode.parents
-                    )
-                )
+                vars = nodes[curr]!!.args.fold(vars) { acc, currVar ->
+                    acc.put(currVar, checkVars(currVar, acc, right.variables))
+                }
             } else {
                 val node = right.nodes[curr]!!
                 nodes = nodes.put(curr, node)
-                node.parents.asSequence().filter { it !in seen }.forEach {
-                    seen.add(it)
-                    q.add(it)
+                vars = node.args.fold(vars) { acc, currVar ->
+                    acc.put(currVar, right.variables[currVar]!!)
                 }
+                node.parents
+                    .asSequence()
+                    .filter { it !in seen }
+                    .forEach {
+                        seen.add(it)
+                        q.add(it)
+                    }
             }
         }
 
-        return TypeDAG(newLowest, nodes)
+        return TypeDAG(newLowest, nodes, vars)
+    }
+
+    private fun checkVars(
+        variable: TypeVar,
+        leftNodes: TypeVarMap,
+        rightNodes: TypeVarMap
+    ): TypeInstance {
+        val left = leftNodes.resolve(variable)
+        val right = rightNodes.resolve(variable)
+
+        return if (left.nullable == right.nullable && left.type == right.type) {
+            val args = checkArgs(left.args, leftNodes, right.args, rightNodes)
+            TypeInstance(left.type, args, left.nullable)
+        } else conflictingArgumentInstance
     }
 
     private fun checkArgs(
-        left: List<TypeInstance>,
-        leftNodes: Map<TypeId, TypeDAGNode>,
-        right: List<TypeInstance>,
-        rightNodes: Map<TypeId, TypeDAGNode>
-    ): List<TypeInstance> = left.zip(right) { l, r ->
-        if (l.nullable != r.nullable) return@zip conflictingArgumentInstance
+        leftVars: List<TypeInstance>,
+        leftNodes: TypeVarMap,
+        rightVars: List<TypeInstance>,
+        rightNodes: TypeVarMap
+    ): List<TypeInstance> = leftVars.zip(rightVars) { left, right ->
+        val newLeft = leftNodes.resolve(left)
+        val newRight = rightNodes.resolve(right)
 
-        val newLeft = l.type.asTypeParam?.let { leftNodes.resolveParam(it, l.nullable, interners) } ?: l
-        val newRight = r.type.asTypeParam?.let { rightNodes.resolveParam(it, r.nullable, interners) } ?: r
-
-        if (newLeft.type == newRight.type) {
+        if (newLeft.nullable == newRight.nullable && newLeft.type == newRight.type) {
             val args = checkArgs(newLeft.args, leftNodes, newRight.args, rightNodes)
             TypeInstance(newLeft.type, args, newLeft.nullable)
         } else conflictingArgumentInstance
@@ -290,6 +271,11 @@ internal class DefaultMainQueries(
             res
         }
 
+    private fun PersistentMap<TypeVar, TypeInstance>.setAll(vars: List<TypeVar>, types: List<TypeInstance>) =
+        vars.indices.fold(this) { acc, i ->
+            acc.put(vars[i], types[i])
+        }
+
     // TODO: Keep track of errors
     context(QueryAccessor)
     private fun addBound(
@@ -305,10 +291,9 @@ internal class DefaultMainQueries(
             onType = { typeId ->
                 if (typeId == stlTypes.value.nothing.asType) return
                 val boundDAG = supertypeDAG[typeId].dag
-                val boundNode = boundDAG.nodes[typeId]!!
-                val modifiedDAG = boundDAG.copy(
-                    nodes = boundDAG.nodes.put(typeId, boundNode.copy(args = bound.args))
-                )
+                val boundVars = boundDAG.nodes[typeId]!!.args
+                val newVars = boundDAG.variables.setAll(boundVars, bound.args)
+                val modifiedDAG = boundDAG.copy(variables = newVars)
                 res[currentHandle.index] = current.copy(
                     lowerTypeBounds = mergeDAGs(current.lowerTypeBounds, modifiedDAG)
                 )
@@ -325,6 +310,7 @@ internal class DefaultMainQueries(
                     canBeNullable = nullable
                 )
             },
+            onTypeVar = { return },
             onError = { return }
         )
     }
@@ -372,7 +358,7 @@ internal class DefaultMainQueries(
         val functions = mutableMapOf<String, List<MemberId>>()
         val getters = mutableMapOf<String, List<MemberId>>()
         val setters = mutableMapOf<String, List<MemberId>>()
-        val overriders = persistentMapOf<MemberId, MemberId>()
+        val overriders = persistentHashMapOf<MemberId, MemberId>()
         val overrides = mutableMapOf<MemberId, List<MemberId>>()
         val unimplemented = mutableSetOf<MemberId>()
 

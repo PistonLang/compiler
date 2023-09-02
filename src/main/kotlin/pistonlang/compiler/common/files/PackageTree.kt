@@ -2,16 +2,13 @@ package pistonlang.compiler.common.files
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
-import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.persistentHashMapOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import pistonlang.compiler.common.items.FileId
-import pistonlang.compiler.common.items.Interner
 import pistonlang.compiler.common.items.MutableInterner
 import pistonlang.compiler.common.items.PackageId
 import pistonlang.compiler.common.main.PackageInterner
 import pistonlang.compiler.common.queries.QueryVersion
-import pistonlang.compiler.util.SingletonIterator
-import java.util.Stack
 
 internal const val packPathDelimiter = '.'
 
@@ -27,7 +24,7 @@ class PackageTree(val nodes: PersistentMap<PackageId, PackageTreeNode>) {
 
         val oldNode = nodes[pack]
         val newNode = if (oldNode == null) {
-            PackageTreeNode(version, persistentSetOf(file), persistentMapOf())
+            PackageTreeNode(version, persistentHashSetOf(file), persistentHashMapOf())
         } else {
             PackageTreeNode(version, oldNode.files.add(file), oldNode.children)
         }
@@ -41,8 +38,8 @@ class PackageTree(val nodes: PersistentMap<PackageId, PackageTreeNode>) {
             val newParent =
                 if (oldParent == null) PackageTreeNode(
                     version,
-                    persistentSetOf(),
-                    persistentMapOf<String, PackageId>().put(childName, child)
+                    persistentHashSetOf(),
+                    persistentHashMapOf<String, PackageId>().put(childName, child)
                 )
                 else PackageTreeNode(version, oldParent.files, oldParent.children.put(childName, child))
             newPackages[currId] = newParent

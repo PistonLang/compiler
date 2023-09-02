@@ -2,53 +2,41 @@ package pistonlang.compiler.common.types
 
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
-import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.persistentHashMapOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import pistonlang.compiler.common.items.Qualifiable
 import pistonlang.compiler.common.items.TypeId
-import pistonlang.compiler.common.items.TypeParamId
-import pistonlang.compiler.common.items.handles.asType
 import pistonlang.compiler.common.items.qualify
 import pistonlang.compiler.common.main.MainInterners
 
 data class TypeDAGNode(
-    val args: List<TypeInstance>,
+    val args: List<TypeVar>,
     val parents: PersistentSet<TypeId>
-) : Qualifiable {
-    override fun qualify(interners: MainInterners): String =
-        "Node(${args.qualify(interners)}, ${parents.qualify(interners)})"
-}
-
-val emptyTypeDAGNode = TypeDAGNode(emptyList(), persistentSetOf())
+)
 
 data class TypeDAG(
     val lowest: PersistentSet<TypeId>,
-    val nodes: PersistentMap<TypeId, TypeDAGNode>
+    val nodes: PersistentMap<TypeId, TypeDAGNode>,
+    val variables: PersistentMap<TypeVar, TypeInstance>
 ) : Qualifiable {
     override fun qualify(interners: MainInterners): String =
         "TypeDAG(${lowest.qualify(interners)}) ${
-            nodes.asSequence().joinToString(separator = "\n\t", prefix = "{\n\t", postfix = "\n}") {
-                "${it.key.qualify(interners)}: ${it.value.qualify(interners)}"
+            nodes.asSequence().joinToString(separator = "\n    ", prefix = "{\n    ", postfix = "\n}") {
+                val args = it.value.args.map { arg -> variables.resolve(arg) }
+                val node = "Node(${args.qualify(interners)}, ${it.value.parents.qualify(interners)})"
+                "${it.key.qualify(interners)}: $node"
             }
         }"
 
     fun isEmpty(): Boolean = lowest.isEmpty()
 }
 
-val emptyTypeDAG: TypeDAG = TypeDAG(persistentSetOf(), persistentMapOf())
+val emptyTypeDAG: TypeDAG = TypeDAG(persistentHashSetOf(), persistentHashMapOf(), persistentHashMapOf())
 
-fun Map<TypeId, TypeDAGNode>.resolveParam(
-    param: TypeParamId,
-    nullable: Boolean,
-    interners: MainInterners,
-): TypeInstance {
-    val paramHandle = interners.typeParamIds.getKey(param)
-    val parent = paramHandle.parent
+fun Map<TypeVar, TypeInstance>.resolve(typeVar: TypeVar): TypeInstance =
+    this[typeVar]?.let { resolve(it) } ?: typeVar.toInstance()
 
-    val id = interners.typeIds[parent] ?: return TypeInstance(param.asType(), emptyList(), nullable)
-
-    if (id !in this)
-        return TypeInstance(param.asType(), emptyList(), nullable)
-
-    return this[id]!!.args[paramHandle.index]
-}
+fun Map<TypeVar, TypeInstance>.resolve(instance: TypeInstance): TypeInstance = instance.asTypeVar()?.let { newVar ->
+    val res = resolve(newVar)
+    if (instance.nullable && !res.nullable) res.copy(nullable = true) else res
+} ?: instance.copy(args = instance.args.map { resolve(it) })

@@ -1,6 +1,7 @@
 package pistonlang.compiler.common.types
 
 import pistonlang.compiler.common.items.Qualifiable
+import pistonlang.compiler.common.items.TypeParamId
 import pistonlang.compiler.common.items.handles.TypeError
 import pistonlang.compiler.common.items.handles.TypeHandle
 import pistonlang.compiler.common.items.handles.asType
@@ -16,3 +17,9 @@ val unknownInstance = TypeInstance(TypeError.UnknownType.asType(), emptyList(), 
 val unspecifiedInstance = TypeInstance(TypeError.UnspecifiedType.asType(), emptyList(), false)
 val conflictingArgumentInstance = TypeInstance(TypeError.ConflictingArgument.asType(), emptyList(), false)
 val missingSTLType = TypeError.UnknownType.asType()
+
+fun TypeInstance.asTypeParam(): TypeParamId? = type.asTypeParam
+fun TypeInstance.asTypeVar(): TypeVar? = type.asTypeVar
+
+fun TypeParamId.toInstance(nullable: Boolean = false) = TypeInstance(this.asType(), emptyList(), nullable)
+fun TypeVar.toInstance(nullable: Boolean = false) = TypeInstance(this.asType(), emptyList(), nullable)

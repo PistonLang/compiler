@@ -1,7 +1,7 @@
 package pistonlang.compiler.piston.analysis
 
 import kotlinx.collections.immutable.PersistentSet
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import pistonlang.compiler.common.types.TypeDAG
 import pistonlang.compiler.common.types.TypeInstance
 import pistonlang.compiler.common.types.emptyTypeDAG
@@ -17,7 +17,7 @@ data class BoundsConstraint<out T>(
 ) : TypeConstraint<T>
 
 val emptyBoundsConstraint =
-    BoundsConstraint<Nothing>(true, emptyTypeDAG, persistentSetOf(), persistentSetOf(), persistentSetOf())
+    BoundsConstraint<Nothing>(true, emptyTypeDAG, persistentHashSetOf(), persistentHashSetOf(), persistentHashSetOf())
 
 data class TypeEqualityConstraint(val instance: TypeInstance) : TypeConstraint<Nothing>
 

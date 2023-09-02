@@ -28,20 +28,20 @@ class TypeParamBoundsTest {
 
     private val expected = """
         MultiInstanceClass(FilePath(path=classes.pi), Foo, 0): [TypeParamBounds: false [TypeParam(MultiInstanceClass(FilePath(path=classes.pi), Foo, 0), 1)] [] TypeDAG([Trait(FilePath(path=classes.pi), Comparable, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
-        	Trait(FilePath(path=classes.pi), Comparable, 0): Node([TypeParam(MultiInstanceClass(FilePath(path=classes.pi), Foo, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=classes.pi), Comparable, 0): Node([TypeParam(MultiInstanceClass(FilePath(path=classes.pi), Foo, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }, TypeParamBounds: true [] [TypeParam(MultiInstanceClass(FilePath(path=classes.pi), Foo, 0), 0)] TypeDAG([Trait(FilePath(path=classes.pi), Bar, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
-        	Trait(FilePath(path=classes.pi), Bar, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=classes.pi), Bar, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }]
         Trait(FilePath(path=classes.pi), Comparable, 0): [TypeParamBounds: true [] [] TypeDAG([Trait(FilePath(path=piston.special.pi), Any, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }]
         Function(Trait(FilePath(path=classes.pi), Comparable, 0), compare, 0): []
         Trait(FilePath(path=classes.pi), Bar, 0): []
         Function(FilePath(path=classes.pi), foo, 0): [TypeParamBounds: true [] [] TypeDAG([Trait(FilePath(path=classes.pi), Comparable, 0)]) {
-        	Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
-        	Trait(FilePath(path=classes.pi), Comparable, 0): Node([TypeParam(Function(FilePath(path=classes.pi), foo, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=classes.pi), Comparable, 0): Node([TypeParam(Function(FilePath(path=classes.pi), foo, 0), 0)], [Trait(FilePath(path=piston.special.pi), Any, 0)])
+            Trait(FilePath(path=piston.special.pi), Any, 0): Node([], [Trait(FilePath(path=piston.special.pi), Any, 0)])
         }]
     """.trimIndent()
 

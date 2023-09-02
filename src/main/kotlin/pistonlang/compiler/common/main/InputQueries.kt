@@ -1,6 +1,6 @@
 package pistonlang.compiler.common.main
 
-import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentHashMapOf
 import pistonlang.compiler.common.files.FileData
 import pistonlang.compiler.common.files.PackageTree
 import pistonlang.compiler.common.files.invalidFileData
@@ -25,7 +25,7 @@ internal class DefaultInputQueries(versionData: QueryVersionData, defaultHandler
     override val filePackage: InputQuery<FileId, PackageId?> =
         InputQuery(versionData) { null }
     override val packageTree: SingletonInputQuery<PackageTree> =
-        SingletonInputQuery(versionData, PackageTree(persistentMapOf()))
+        SingletonInputQuery(versionData, PackageTree(persistentHashMapOf()))
     override val fileHandler: InputQuery<FileId, LanguageHandler<*>> =
         InputQuery(versionData) { defaultHandler }
 }

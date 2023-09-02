@@ -1,7 +1,7 @@
 package pistonlang.compiler.common.files
 
 import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentHashMapOf
 import pistonlang.compiler.common.main.CompilerInstance
 import pistonlang.compiler.util.EmptyIterator
 import java.util.*
@@ -31,8 +31,8 @@ internal data class VirtualPackageTreeNode<out Data> internal constructor(
     }
 
     internal fun <Res> mapValues(fn: (Data) -> Res): VirtualPackageTreeNode<Res> = VirtualPackageTreeNode(
-        children.asSequence().fold(persistentMapOf()) { map, (name, node) -> map.put(name, node.mapValues(fn)) },
-        files.asSequence().fold(persistentMapOf()) { map, (name, data) -> map.put(name, fn(data)) }
+        children.asSequence().fold(persistentHashMapOf()) { map, (name, node) -> map.put(name, node.mapValues(fn)) },
+        files.asSequence().fold(persistentHashMapOf()) { map, (name, data) -> map.put(name, fn(data)) }
     )
 
     internal operator fun iterator(): Iterator<Pair<FilePath, Data>> =
@@ -95,8 +95,8 @@ private operator fun <Data> VirtualPackageTreeNode<Data>.plus(other: VirtualPack
 }
 
 class VirtualPackageTreeBuilder<Data> {
-    private var children = persistentMapOf<String, VirtualPackageTreeNode<Data>>()
-    private var files = persistentMapOf<String, Data>()
+    private var children = persistentHashMapOf<String, VirtualPackageTreeNode<Data>>()
+    private var files = persistentHashMapOf<String, Data>()
 
     @PublishedApi
     internal fun addChild(name: String, node: VirtualPackageTreeNode<Data>) {

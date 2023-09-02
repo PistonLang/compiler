@@ -1,7 +1,7 @@
 package pistonlang.compiler.common.main.stl
 
-import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.persistentHashMapOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import pistonlang.compiler.common.items.TypeId
 import pistonlang.compiler.common.items.handles.TypeHandle
 import pistonlang.compiler.common.types.*
@@ -27,9 +27,10 @@ data class STLTypes(
     val unitInstance = TypeInstance(unit, emptyList(), false)
     val anyDAG = any.asType?.let { any ->
         TypeDAG(
-            persistentSetOf(any),
-            persistentMapOf<TypeId, TypeDAGNode>().put(any, TypeDAGNode(emptyList(), persistentSetOf(any)))
+            persistentHashSetOf(any),
+            persistentHashMapOf<TypeId, TypeDAGNode>().put(any, TypeDAGNode(emptyList(), persistentHashSetOf(any))),
+            persistentHashMapOf()
         )
     } ?: emptyTypeDAG
-    val anyParamBounds = TypeParamBounds(true, anyDAG, persistentSetOf(), persistentSetOf())
+    val anyParamBounds = TypeParamBounds(true, anyDAG, persistentHashSetOf(), persistentHashSetOf())
 }
