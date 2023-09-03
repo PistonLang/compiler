@@ -23,6 +23,7 @@ interface MainQueries {
     val packageItems: Query<PackageId, Map<String, List<ItemHandle>>>
     val childItems: Query<MemberId, Map<String, List<MemberId>>>
     val typeParams: Query<MemberId, TypeParamData>
+    val typeParamVars: Query<TypeId, TypeVarData>
     val defaultInstance: Query<TypeId, TypeInstance>
     val supertypeDAG: Query<TypeId, SupertypeDAG>
     val params: Query<MemberId, List<TypeInstance>>
@@ -122,11 +123,15 @@ internal class DefaultMainQueries(
             name to id
         }
 
-        TypeParamData(
+        ParamData(
             mapped.map { it.second },
             mapped.groupBy({ it.first }) { it.second },
-            mapped.groupBy({ it.first }) { interners.typeVars.getOrAdd(it.second.asTypeVar()) }
         )
+    }
+
+    override val typeParamVars: Query<TypeId, TypeVarData> = DependentQuery(versionData) fn@{ key ->
+        val memberId = interners.typeIds.getKey(key)
+        typeParams[memberId].map { interners.typeVars.getOrAdd(it.asTypeVar()) }
     }
 
     override val defaultInstance: Query<TypeId, TypeInstance> = DependentQuery(versionData) fn@{ key ->
@@ -158,7 +163,7 @@ internal class DefaultMainQueries(
 
             val simpleDAG = TypeDAG(
                 persistentHashSetOf(key),
-                withoutCurr.nodes.put(key, TypeDAGNode(argVars, withoutCurr.lowest)),
+                withoutCurr.parents.put(key, withoutCurr.lowest),
                 withoutCurr.variables.setAll(argVars, typeArgs.map { it.toInstance() })
             )
 
@@ -182,35 +187,36 @@ internal class DefaultMainQueries(
         if (oldDAG.isEmpty()) return oldData
         if (oldData.excluding.contains(on)) return null
 
-        val vars = oldDAG.nodes[type]!!.args
+        val vars = typeParamVars[type].ids
         val newVars = oldDAG.variables.setAll(vars, instance.args)
 
         return oldData.copy(dag = oldDAG.copy(variables = newVars))
     }
 
+    context(QueryAccessor)
     private fun mergeDAGs(left: TypeDAG, right: TypeDAG): TypeDAG {
-        if (left.nodes.size < right.nodes.size) return mergeDAGs(right, left)
+        if (left.parents.size < right.parents.size) return mergeDAGs(right, left)
 
-        val seen = HashSet(left.lowest)
-        val newLowest = (left.lowest.asSequence().filter { it !in right.nodes || it in right.lowest } +
-                right.lowest.asSequence().filter { it !in left.nodes }).toPersistentSet()
-        var nodes = left.nodes
+        val seen = left.lowest.toHashSet()
+        val newLowest = (left.lowest.asSequence().filter { it !in right.parents || it in right.lowest } +
+                right.lowest.asSequence().filter { it !in left.parents }).toPersistentSet()
+        var nodes = left.parents
         var vars = left.variables
         val q = ArrayDeque(right.lowest)
 
         while (q.isNotEmpty()) {
             val curr = q.removeFirst()
             if (curr in nodes) {
-                vars = nodes[curr]!!.args.fold(vars) { acc, currVar ->
+                vars = typeParamVars[curr].ids.fold(vars) { acc, currVar ->
                     acc.put(currVar, checkVars(currVar, acc, right.variables))
                 }
             } else {
-                val node = right.nodes[curr]!!
-                nodes = nodes.put(curr, node)
-                vars = node.args.fold(vars) { acc, currVar ->
+                val parents = right.parents[curr]!!
+                nodes = nodes.put(curr, parents)
+                vars = typeParamVars[curr].ids.fold(vars) { acc, currVar ->
                     acc.put(currVar, right.variables[currVar]!!)
                 }
-                node.parents
+                parents
                     .asSequence()
                     .filter { it !in seen }
                     .forEach {
@@ -233,7 +239,7 @@ internal class DefaultMainQueries(
 
         return if (left.nullable == right.nullable && left.type == right.type) {
             val args = checkArgs(left.args, leftNodes, right.args, rightNodes)
-            TypeInstance(left.type, args, left.nullable)
+            TypeInstance(leftNodes[variable]!!.type, args, left.nullable)
         } else conflictingArgumentInstance
     }
 
@@ -248,7 +254,7 @@ internal class DefaultMainQueries(
 
         if (newLeft.nullable == newRight.nullable && newLeft.type == newRight.type) {
             val args = checkArgs(newLeft.args, leftNodes, newRight.args, rightNodes)
-            TypeInstance(newLeft.type, args, newLeft.nullable)
+            TypeInstance(left.type, args, left.nullable)
         } else conflictingArgumentInstance
     }
 
@@ -286,7 +292,7 @@ internal class DefaultMainQueries(
             onType = { typeId ->
                 if (typeId == stlTypes.value.nothing.asType) return
                 val boundDAG = supertypeDAG[typeId].dag
-                val boundVars = boundDAG.nodes[typeId]!!.args
+                val boundVars = typeParamVars[typeId].ids
                 val newVars = boundDAG.variables.setAll(boundVars, bound.args)
                 val modifiedDAG = boundDAG.copy(variables = newVars)
                 res[currentHandle.index] = current.copy(
@@ -360,6 +366,20 @@ internal class DefaultMainQueries(
         // TODO
 
         VirtualMembers(functions, getters, setters, overriders, overrides, unimplemented)
+    }
+
+    private fun typesEqual(first: TypeInstance, second: TypeInstance, secondMapping: TypeDAG): Boolean {
+        val mapped = second.type
+            .asTypeParam
+            ?.asTypeVar()
+            ?.let { interners.typeVars[it] }
+            ?.let { secondMapping.variables.resolve(it) }
+            ?: second
+        return mapped.type == first.type
+                && mapped.nullable == first.nullable
+                && first.args.indices.all { i ->
+            typesEqual(first.args[i], second.args[i], secondMapping)
+        }
     }
 }
 

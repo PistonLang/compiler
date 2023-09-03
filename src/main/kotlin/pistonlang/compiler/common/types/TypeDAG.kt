@@ -4,30 +4,32 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashMapOf
 import kotlinx.collections.immutable.persistentHashSetOf
-import pistonlang.compiler.common.items.Qualifiable
-import pistonlang.compiler.common.items.TypeId
-import pistonlang.compiler.common.items.TypeVarId
-import pistonlang.compiler.common.items.qualify
+import pistonlang.compiler.common.items.*
+import pistonlang.compiler.common.items.handles.TypeParamHandle
+import pistonlang.compiler.common.items.handles.asTypeVar
 import pistonlang.compiler.common.main.MainInterners
-
-data class TypeDAGNode(
-    val args: List<TypeVarId>,
-    val parents: PersistentSet<TypeId>
-)
 
 data class TypeDAG(
     val lowest: PersistentSet<TypeId>,
-    val nodes: PersistentMap<TypeId, TypeDAGNode>,
+    val parents: PersistentMap<TypeId, Set<TypeId>>,
     val variables: PersistentMap<TypeVarId, TypeInstance>
 ) : Qualifiable {
-    override fun qualify(interners: MainInterners): String =
-        "TypeDAG(${lowest.qualify(interners)}) ${
-            nodes.asSequence().joinToString(separator = "\n    ", prefix = "{\n    ", postfix = "\n}") {
-                val args = it.value.args.map { arg -> variables.resolve(arg) }
-                val node = "Node(${args.qualify(interners)}, ${it.value.parents.qualify(interners)})"
-                "${it.key.qualify(interners)}: $node"
-            }
-        }"
+    override fun qualify(interners: MainInterners): String = "TypeDAG(${lowest.qualify(interners)}) ${
+        parents.asSequence().map { (curr, parents) ->
+            val memberId = interners.typeIds.getKey(curr)
+            val args = qualifyTypeArgs(interners, memberId)
+            val node = "Node($args, ${parents.qualify(interners)})"
+            "${memberId.qualify(interners)}: $node"
+        }.joinToString(separator = "\n    ", prefix = "{\n    ", postfix = "\n}")
+    }"
+
+    private fun qualifyTypeArgs(interners: MainInterners, memberId: MemberId) =
+        (0..Int.MAX_VALUE).asSequence()
+            .map { interners.typeParamIds[TypeParamHandle(memberId, it)] }
+            .takeWhile { it != null }
+            .map { interners.typeVars[it!!.asTypeVar()]!! }
+            .map { variables.resolve(it) }
+            .qualify(interners)
 
     fun isEmpty(): Boolean = lowest.isEmpty()
 }

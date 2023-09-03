@@ -28,7 +28,7 @@ data class STLTypes(
     val anyDAG = any.asType?.let { any ->
         TypeDAG(
             persistentHashSetOf(any),
-            persistentHashMapOf<TypeId, TypeDAGNode>().put(any, TypeDAGNode(emptyList(), persistentHashSetOf(any))),
+            persistentHashMapOf<TypeId, Set<TypeId>>().put(any, persistentHashSetOf(any)),
             persistentHashMapOf()
         )
     } ?: emptyTypeDAG

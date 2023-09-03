@@ -28,6 +28,9 @@ fun Pair<Qualifiable, Dependent<*, Iterable<Qualifiable>>>.qualify(interners: Ma
 fun Iterable<Qualifiable>.qualify(interners: MainInterners): String =
     joinToString(prefix = "[", postfix = "]") { it.qualify(interners) }
 
+fun Sequence<Qualifiable>.qualify(interners: MainInterners): String =
+    joinToString(prefix = "[", postfix = "]") { it.qualify(interners) }
+
 @JvmName("qualifyQualifiable")
 fun Dependent<*, Qualifiable>.qualify(interners: MainInterners): String =
     "Dependent(${dependencies.qualify(interners)}, ${data.qualify(interners)})"
