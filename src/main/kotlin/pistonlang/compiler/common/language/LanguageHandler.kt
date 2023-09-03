@@ -38,7 +38,8 @@ interface LanguageHandler<out Type : SyntaxType> {
     val constructors: Query<TypeId, List<RelativeNodeLoc<Type>>>
 
     /**
-     * List of supertypes of a declared type
+     * List of supertypes of a declared type, where the type parameters' variables are used instead
+     * of the parameters themselves
      */
     val supertypes: Query<TypeId, SupertypeData<Type>>
 

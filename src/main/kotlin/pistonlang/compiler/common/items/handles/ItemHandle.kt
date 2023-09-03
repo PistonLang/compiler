@@ -1,14 +1,12 @@
 package pistonlang.compiler.common.items.handles
 
-import pistonlang.compiler.common.items.MemberId
-import pistonlang.compiler.common.items.PackageId
-import pistonlang.compiler.common.items.Qualifiable
-import pistonlang.compiler.common.items.TypeParamId
+import pistonlang.compiler.common.items.*
 import pistonlang.compiler.common.main.MainInterners
 
 enum class ItemType {
     Package,
     TypeParam,
+    TypeVar,
     Member,
     Error
 }
@@ -25,11 +23,13 @@ class ItemHandle internal constructor(
         onPackage: (PackageId) -> T,
         onMember: (MemberId) -> T,
         onTypeParam: (TypeParamId) -> T,
+        onTypeVar: (TypeVarId) -> T,
         onError: (HandleError) -> T,
     ) = when (type) {
         ItemType.Package -> onPackage(PackageId(id))
         ItemType.Member -> onMember(MemberId(id))
         ItemType.TypeParam -> onTypeParam(TypeParamId(id))
+        ItemType.TypeVar -> onTypeVar(TypeVarId(id))
         ItemType.Error -> onError(HandleError.entries[id])
     }
 
@@ -42,8 +42,12 @@ class ItemHandle internal constructor(
     val asTypeParam: TypeParamId?
         get() = if (type == ItemType.TypeParam) TypeParamId(id) else null
 
+    val asTypeVar: TypeVarId?
+        get() = if (type == ItemType.TypeVar) TypeVarId(id) else null
+
     val asError: HandleError?
         get() = if (type == ItemType.Error) HandleError.entries[id] else null
+
 
     override fun equals(other: Any?): Boolean =
         other is ItemHandle && other.id == id && other.type == type
@@ -53,14 +57,16 @@ class ItemHandle internal constructor(
     override fun toString(): String = when (type) {
         ItemType.Package -> PackageId(id).toString()
         ItemType.Member -> MemberId(id).toString()
-        ItemType.Error -> HandleError.entries[id].toString()
         ItemType.TypeParam -> TypeParamId(id).toString()
+        ItemType.TypeVar -> TypeVarId(id).toString()
+        ItemType.Error -> HandleError.entries[id].toString()
     }
 
     fun toTypeHandle(interners: MainInterners): TypeHandle? = match(
         onPackage = { null },
-        onMember = { interners.typeIds.get(it)?.asType() },
+        onMember = { interners.typeIds[it]?.asType() },
         onTypeParam = { it.asType() },
+        onTypeVar = { it.asType() },
         onError = { null }
     )
 
@@ -68,6 +74,7 @@ class ItemHandle internal constructor(
         onMember = { it.qualify(interners) },
         onTypeParam = { it.qualify(interners) },
         onPackage = { it.qualify(interners) },
+        onTypeVar = { it.qualify(interners) },
         onError = { it.toString() }
     )
 }
@@ -75,4 +82,5 @@ class ItemHandle internal constructor(
 fun PackageId.asItem() = ItemHandle(value, ItemType.Package)
 fun MemberId.asItem() = ItemHandle(value, ItemType.Member)
 fun TypeParamId.asItem() = ItemHandle(value, ItemType.TypeParam)
+fun TypeVarId.asItem() = ItemHandle(value, ItemType.TypeVar)
 fun HandleError.asItem() = ItemHandle(ordinal, ItemType.Error)

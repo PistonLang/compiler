@@ -2,6 +2,7 @@ package pistonlang.compiler.common.types
 
 import pistonlang.compiler.common.items.Qualifiable
 import pistonlang.compiler.common.items.TypeParamId
+import pistonlang.compiler.common.items.TypeVarId
 import pistonlang.compiler.common.items.handles.TypeError
 import pistonlang.compiler.common.items.handles.TypeHandle
 import pistonlang.compiler.common.items.handles.asType
@@ -19,7 +20,7 @@ val conflictingArgumentInstance = TypeInstance(TypeError.ConflictingArgument.asT
 val missingSTLType = TypeError.UnknownType.asType()
 
 fun TypeInstance.asTypeParam(): TypeParamId? = type.asTypeParam
-fun TypeInstance.asTypeVar(): TypeVar? = type.asTypeVar
+fun TypeInstance.asTypeVar(): TypeVarId? = type.asTypeVar
 
 fun TypeParamId.toInstance(nullable: Boolean = false) = TypeInstance(this.asType(), emptyList(), nullable)
-fun TypeVar.toInstance(nullable: Boolean = false) = TypeInstance(this.asType(), emptyList(), nullable)
+fun TypeVarId.toInstance(nullable: Boolean = false) = TypeInstance(this.asType(), emptyList(), nullable)

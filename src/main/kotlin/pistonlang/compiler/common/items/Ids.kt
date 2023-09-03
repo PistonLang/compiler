@@ -43,3 +43,9 @@ value class TypeParamId @PublishedApi internal constructor(override val value: I
     override fun qualify(interners: MainInterners): String =
         interners.typeParamIds.getKey(this).qualify(interners)
 }
+
+@JvmInline
+value class TypeVarId @PublishedApi internal constructor(override val value: Int) : Id {
+    override fun qualify(interners: MainInterners): String =
+        interners.typeVars.getKey(this).qualify(interners)
+}

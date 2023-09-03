@@ -38,8 +38,6 @@ internal class DefaultMainQueries(
     private val interners: InstanceInterners,
     private val inputs: InputQueries,
 ) : MainQueries {
-    private val typeVarFactory = TypeVarFactory()
-
     private val childHandler: Query<MemberId, LanguageHandler<*>> =
         DependentQuery(versionData, computeFn = ::findChildHandler)
 
@@ -124,7 +122,11 @@ internal class DefaultMainQueries(
             name to id
         }
 
-        TypeParamData(mapped.map { it.second }, mapped.groupBy({ it.first }) { it.second })
+        TypeParamData(
+            mapped.map { it.second },
+            mapped.groupBy({ it.first }) { it.second },
+            mapped.groupBy({ it.first }) { interners.typeVars.getOrAdd(it.second.asTypeVar()) }
+        )
     }
 
     override val defaultInstance: Query<TypeId, TypeInstance> = DependentQuery(versionData) fn@{ key ->
@@ -144,12 +146,11 @@ internal class DefaultMainQueries(
             val superTypes = handler.supertypes[key].data
             val excluding = mutableSetOf<TypeId>()
             val typeArgs = typeParams[memberId].ids
-            val argVars = List(typeArgs.size) { typeVarFactory.next() }
-            val argsMap = typeArgs.zip(argVars).toMap()
+            val argVars = typeArgs.map { interners.typeVars.getOrAdd(it.asTypeVar()) }
 
             val withoutCurr = superTypes
                 .asSequence()
-                .mapNotNull { newDAGFor(paramsToVariables(it, argsMap), key) }
+                .mapNotNull { newDAGFor(it, key) }
                 .fold(stlTypes.value.anyDAG) { acc, value ->
                     excluding.addAll(value.excluding)
                     mergeDAGs(acc, value.dag)
@@ -187,12 +188,6 @@ internal class DefaultMainQueries(
         return oldData.copy(dag = oldDAG.copy(variables = newVars))
     }
 
-    private fun paramsToVariables(instance: TypeInstance, mapping: Map<TypeParamId, TypeVar>): TypeInstance =
-        instance.asTypeParam()
-            ?.let { mapping[it] }
-            ?.toInstance(instance.nullable)
-            ?: instance.copy(args = instance.args.map { paramsToVariables(it, mapping) })
-
     private fun mergeDAGs(left: TypeDAG, right: TypeDAG): TypeDAG {
         if (left.nodes.size < right.nodes.size) return mergeDAGs(right, left)
 
@@ -229,7 +224,7 @@ internal class DefaultMainQueries(
     }
 
     private fun checkVars(
-        variable: TypeVar,
+        variable: TypeVarId,
         leftNodes: TypeVarMap,
         rightNodes: TypeVarMap
     ): TypeInstance {
@@ -271,7 +266,7 @@ internal class DefaultMainQueries(
             res
         }
 
-    private fun PersistentMap<TypeVar, TypeInstance>.setAll(vars: List<TypeVar>, types: List<TypeInstance>) =
+    private fun PersistentMap<TypeVarId, TypeInstance>.setAll(vars: List<TypeVarId>, types: List<TypeInstance>) =
         vars.indices.fold(this) { acc, i ->
             acc.put(vars[i], types[i])
         }
@@ -355,12 +350,12 @@ internal class DefaultMainQueries(
     override val virtualMembers: Query<TypeId, VirtualMembers> = DependentQuery(versionData) { key ->
         val parents = supertypeDAG[key].dag
 
-        val functions = mutableMapOf<String, List<MemberId>>()
-        val getters = mutableMapOf<String, List<MemberId>>()
-        val setters = mutableMapOf<String, List<MemberId>>()
+        val functions = persistentHashMapOf<String, List<MemberId>>()
+        val getters = persistentHashMapOf<String, List<MemberId>>()
+        val setters = persistentHashMapOf<String, List<MemberId>>()
         val overriders = persistentHashMapOf<MemberId, MemberId>()
-        val overrides = mutableMapOf<MemberId, List<MemberId>>()
-        val unimplemented = mutableSetOf<MemberId>()
+        val overrides = persistentHashMapOf<MemberId, List<MemberId>>()
+        val unimplemented = persistentHashSetOf<MemberId>()
 
         // TODO
 

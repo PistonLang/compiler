@@ -343,7 +343,7 @@ class PistonLanguageHandler(
                 .asRoot()
 
             val deps = mutableListOf<HandleData<PistonType>>()
-            val scope = typeParamScope[memberId]
+            val scope = typeParamVarsScope[memberId]
 
             val types = node.childSequence
                 .filter { it.type in PistonSyntaxSets.types }
@@ -513,6 +513,7 @@ class PistonLanguageHandler(
                 onPackage = { false },
                 onMember = { interners.memberIds.getKey(it).type.newType },
                 onTypeParam = { true },
+                onTypeVar = { true },
                 onError = { false }
             )
         }
@@ -604,6 +605,16 @@ class PistonLanguageHandler(
 
         val parentScope = getStaticParentScope(parent, !handle.type.newType)
         val typeParams = mainQueries.typeParams[key].nameMap.mapValues { (_, value) -> value.map { it.asItem() } }
+
+        StaticScope(parentScope, typeParams)
+    }
+
+    private val typeParamVarsScope: Query<MemberId, Scope> = DependentQuery(versionData) { key ->
+        val handle = interners.memberIds.getKey(key)
+        val parent = handle.parent
+
+        val parentScope = getStaticParentScope(parent, !handle.type.newType)
+        val typeParams = mainQueries.typeParams[key].varMap.mapValues { (_, value) -> value.map { it.asItem() } }
 
         StaticScope(parentScope, typeParams)
     }
